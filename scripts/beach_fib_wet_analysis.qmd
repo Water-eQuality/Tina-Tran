@@ -1,0 +1,188 @@
+---
+title: "beach_fib_wet_analysis"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+```{r, message = false}
+# Load libraries 
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(ggridges)
+library(here)
+library(lubridate)
+library(slider)
+library(scales)
+library(janitor)
+```
+
+```{r}
+# Read the file
+beach_data_wet_period <- read.csv(here("data","beach_data_wet_period.csv")) 
+
+# Edit the data
+beach_wet_fib <- beach_data_wet_period |>
+  mutate(result_log = log10(result),
+         sampledate = as.numeric(as.Date(sampledate)))
+
+# Double checking how many unique parameters there are (4 total)
+unique(beach_wet_fib$parameter)
+
+```
+
+**Heal The Bay Brand Colors For GGplot**
+
+This code creates a color gradient for the graphs based on the Heal The Bay (HTB)'s brand colors. It creates 18 types of colors based on the 5 given brand colors.
+
+```{r}
+htb_brand_colors <- colorRampPalette(c("#263746", "#005CB9", "#40B4E5", "#00B6B6", "#8ACFCF"))
+htb_brand_colors(34)
+```
+
+**Wet - Enterococcus EDA**
+
+```{r}
+# Create a separate data set for each parameter
+wet_fib_enterococcus <- beach_wet_fib |>
+  filter(parameter == "Enterococcus")
+
+# Checking how many unit types exist 
+unique(wet_fib_enterococcus$unit)
+# 2 exist - "MPN/100ml" "CFU/100ml"
+
+# Checking to see how many beaches sampled for Enterococcus
+unique(wet_fib_enterococcus$beachname)
+# 34 beaches appear
+
+
+# Box and Whisker Plot for Enterococcus only For Each Beach
+wet_fib_entero_plot <- wet_fib_enterococcus |>
+  mutate(year = year(as.Date(sampledate))) |>
+  ggplot(aes(x = result_log, y = beachname,fill = beachname)) +
+  geom_boxplot(show.legend = FALSE) +
+  scale_fill_manual(values = htb_brand_colors(length(unique(wet_fib_enterococcus$beachname)))) +
+  facet_wrap(~ year, ncol = 4) +
+  labs(x = "Log 10 Transformed Enterococcus Concentration",
+    y = "Beach Name") +
+  theme_minimal(base_size = 14) +
+  theme(
+    strip.text = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.background = element_rect(fill = "white", color = NA))
+
+# Save the plot
+ggsave(here("outputs", "wet_fib_entero_plot.png"), width = 9, height = 15, dpi = 400)
+```
+
+**Wet E.Coli EDA**
+
+```{r}
+# Created a separate data frame for E.Coli Data
+wet_fib_ecoli <- beach_wet_fib |>
+  filter(parameter == "E. Coli") 
+
+# Checking how many unit types exist 
+unique(wet_fib_ecoli$unit)
+# 1 exist - "MPN/100ml" 
+
+# Check How Many Beaches Sampled E.Coli 
+unique(wet_fib_ecoli$beachname)
+# 28 beaches that have e.coli data 
+
+# Box and Whisker Plot for Enterococcus only For Each Beach
+wet_fib_ecoli_plot <- wet_fib_ecoli |>
+  mutate(year = year(as.Date(sampledate))) |>
+  ggplot(aes(x = result_log, y = beachname, fill = beachname)) +
+  geom_boxplot(show.legend = FALSE) +
+  scale_fill_manual(values = htb_brand_colors(length(unique(wet_fib_ecoli$beachname)))) +
+  facet_wrap(~ year, ncol = 4) +
+  labs(x = "Log 10 Transformed E.Coli Concentration",
+    y = "Beach Name") +
+  theme_minimal(base_size = 14) +
+  theme(
+    strip.text = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.background = element_rect(fill = "white", color = NA))
+
+# Save the plot
+ggsave(here("outputs", "wet_fib_ecoli_plot.png"), width = 9, height = 15, dpi = 400)
+```
+
+**Wet Total Coliform EDA**
+
+```{r}
+# Created a separate data frame for total coliform data
+wet_fib_total_coliforms <- beach_wet_fib |>
+  filter(parameter == "Total Coliforms") 
+
+# Checking how many unit types exist 
+unique(wet_fib_total_coliforms$unit)
+# 2 exist - "MPN/100ml" "CFU/100ml" 
+
+# Check How Many Beaches Sampled E.Coli 
+unique(wet_fib_total_coliforms$beachname)
+# 34 beaches that have total coliforms data 
+
+# Box and Whisker Plot for Enterococcus only For Each Beach
+wet_fib_tot_coli_plot <- wet_fib_total_coliforms |>
+  mutate(year = year(as.Date(sampledate))) |>
+  ggplot(aes(x = result_log, y = beachname,fill = beachname)) +
+  geom_boxplot(show.legend = FALSE) +
+  scale_fill_manual(values = htb_brand_colors(length(unique(wet_fib_total_coliforms$beachname)))) +
+  facet_wrap(~ year, ncol = 4) +
+  labs(x = "Log 10 Transformed Total Coliforms Concentration",
+    y = "Beach Name") +
+  theme_minimal(base_size = 14) +
+  theme(
+    strip.text = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.background = element_rect(fill = "white", color = NA))
+
+# Save the plot
+ggsave(here("outputs", "wet_fib_tot_coli_plot.png"), width = 9, height = 15, dpi = 400)
+```
+
+**Wet Fecal Coliform EDA**
+
+```{r}
+# Created a separate data frame for fecal coliform data 
+wet_fib_fecal_coliforms <- beach_wet_fib |>
+  filter(parameter == "Fecal Coliforms") 
+
+# Checking how many unit types exist 
+unique(wet_fib_fecal_coliforms$unit)
+# 2 exist - "MPN/100ml" "CFU/100ml" 
+
+# Check How Many Beaches Sampled E.Coli 
+unique(wet_fib_fecal_coliforms$beachname)
+# 33 beaches that have total coliforms data 
+
+# Box and Whisker Plot for Enterococcus only For Each Beach
+wet_fib_fec_coli_plot <- wet_fib_fecal_coliforms |>
+  mutate(year = year(as.Date(sampledate))) |>
+  ggplot(aes(x = result_log, y = beachname,fill = beachname)) +
+  geom_boxplot(show.legend = FALSE) +
+  scale_fill_manual(values = htb_brand_colors(length(unique(wet_fib_fecal_coliforms$beachname)))) +
+  facet_wrap(~ year, ncol = 4) +
+  labs(x = "Log 10 Transformed Fecal Coliforms Concentration",
+    y = "Beach Name") +
+  theme_minimal(base_size = 14) +
+  theme(
+    strip.text = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.background = element_rect(fill = "white", color = NA))
+
+# Save the plot
+ggsave(here("outputs", "wet_fib_fec_coli_plot.png"), width = 9, height = 15, dpi = 400)
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
