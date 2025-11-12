@@ -1,0 +1,159 @@
+---
+title: "beach_fib_time_series"
+format: html
+editor: visual
+---
+
+## Beach FIB Timeseries Analysis
+
+This code is creating a 10 year timeseries analysis for each beach to understand the trends between the wet and dry periods across 2014-2024.
+
+```{r, message = false, warning = false}
+# Load libraries 
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(ggridges)
+library(here)
+library(lubridate)
+library(slider)
+library(scales)
+library(purrr)
+library(janitor)
+```
+
+**Loading Data + Clean Data For This Timeseries Analysis**
+
+```{r}
+beach_clean <- read.csv(here("data", "clean_master_beach_data_2014_2024.csv")) |>
+  mutate(log_result = log10(result),     # log 10 transformed the result column
+         sampledate = as.Date(sampledate)) # make sampledate into a date from a chr
+
+```
+
+**Heal The Bay Brand Colors For GGplot**
+
+This code creates a color gradient for the graphs based on the Heal The Bay (HTB)'s brand colors. It creates 18 types of colors based on the 5 given brand colors.
+
+```{r}
+htb_colors <- c(
+  "E. coli" = "#40B4EB",
+  "Enterococcus" = "#2D94C8",
+  "Total Coliform" = "#8FA9B9",
+  "Fecal Coliform" = "#1479A9")
+```
+
+**10 Year Time Series Analysis - One PNG Per Station (4 Parameters)**
+
+```{r}
+# Split data by station ----
+station_list <- split(beach_clean, beach_clean$stationname)
+
+# Loop through each station ----
+walk(names(station_list), function(station) {
+  
+  # Extract that station's data
+  station_df <- station_list[[station]] |>
+    arrange(sampledate) # This code ensures that the sampledate column is in chronological order
+  
+  # Create the plot with 4 panels (one per parameter)
+  station_plot <- ggplot(station_df, aes(x = sampledate, y = log_result, color = parameter)) +
+    geom_line(aes(group = parameter), linewidth = 0.6, alpha = 0.8) +  # connect in date order
+      scale_color_manual(values = htb_colors) +              # apply your custom brand palette
+    geom_point(alpha = 0.6, size = 1.2) +
+    facet_wrap(~ parameter, scales = "free_y", nrow = 2) +  # 4 panels
+    scale_color_manual(values = htb_colors) +
+    scale_x_date(
+      date_breaks = "1 year",
+      date_labels = "%Y"
+    ) +
+    labs(
+      title = paste0("10-Year Time Series: ", station),
+      x = "Date",
+      y = expression(Log[10]*"(Concentration)"),
+      color = "Parameter"
+    ) +
+    theme_bw(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+      axis.text.x = element_text(angle = 0, hjust = 1),
+      legend.position = "none",
+      panel.spacing = unit(1, "lines")
+    )
+  
+  # Save the PNG ----
+ ggsave(
+  filename = here("outputs", "beach_timeseries_all", paste0(gsub("[^A-Za-z0-9]", "_", station), "_timeseries.png")),
+  plot = station_plot,
+  width = 15,
+  height = 10,
+  dpi = 400)
+  
+  message("✅ Saved plot for: ", station)
+})
+
+```
+
+**10 Year Time Series Analysis - One PNG Per Station Per Parameter**
+
+```{r}
+# Split data by station ----
+station_list <- split(beach_clean, beach_clean$stationname)
+
+# Loop through each station ----
+walk(names(station_list), function(station) {
+  
+  # Extract that station’s data
+  station_df <- station_list[[station]]
+  
+  # Split further by parameter ----
+  parameter_list <- split(station_df, station_df$parameter)
+  
+  # Loop through each parameter for this station ----
+  walk(names(parameter_list), function(param) {
+    
+    # Extract the subset for this parameter
+    parameter_df <- parameter_list[[param]]
+    
+    # Create the plot ----
+    station_param_plot <- ggplot(parameter_df, aes(x = sampledate, y = log_result)) +
+      geom_point(color = htb_colors[param], alpha = 0.6, size = 1.2) +
+      geom_line(color = htb_colors[param], linewidth = 0.8, aes(group = 1)) +  # Connect by date
+      geom_smooth(method = "loess", se = FALSE, color = htb_colors[param], linewidth = 0.9) +
+      scale_x_date(
+        date_breaks = "1 year",
+        date_labels = "%Y"
+      ) +
+      labs(
+        title = paste0("10-Year Time Series: ", station, " (", param, ")"),
+        x = "Date",
+        y = expression(Log[10]*"(Concentration)")
+      ) +
+      theme_minimal(base_size = 12) +
+      theme(
+        plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+        axis.text.x = element_text(angle = 45, hjust = 1)
+      )
+    
+    # Save PNG ----
+    ggsave(
+      filename = here(
+        "outputs", "beach_timeseries_separate",
+        paste0(
+          gsub("[^A-Za-z0-9]", "_", station), "_",
+          gsub("[^A-Za-z0-9]", "_", param), "_timeseries.png"
+        )
+      ),
+      plot = station_param_plot,
+      width = 12,
+      height = 10,
+      dpi = 400
+    )
+    
+    message("✅ Saved plot for: ", station, " - ", param)
+  })
+})
+
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).

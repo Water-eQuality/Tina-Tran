@@ -4,9 +4,7 @@ format: html
 editor: visual
 ---
 
-## Quarto
-
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+## Beach FIB Wet Period Analysis
 
 ```{r, message = false}
 # Load libraries 
@@ -66,10 +64,10 @@ wet_fib_entero_plot <- wet_fib_enterococcus |>
   ggplot(aes(x = result_log, y = beachname,fill = beachname)) +
   geom_boxplot(show.legend = FALSE) +
   scale_fill_manual(values = htb_brand_colors(length(unique(wet_fib_enterococcus$beachname)))) +
-  facet_wrap(~ year, ncol = 4) +
+  facet_wrap(~ year, ncol = 11) +
   labs(x = "Log 10 Transformed Enterococcus Concentration",
     y = "Beach Name") +
-  theme_minimal(base_size = 14) +
+  theme_bw(base_size = 14) +
   theme(
     strip.text = element_text(face = "bold"),
     panel.grid.minor = element_blank(),
@@ -77,7 +75,7 @@ wet_fib_entero_plot <- wet_fib_enterococcus |>
     panel.background = element_rect(fill = "white", color = NA))
 
 # Save the plot
-ggsave(here("outputs", "wet_fib_entero_plot.png"), width = 9, height = 15, dpi = 400)
+ggsave(here("outputs", "wet_fib_entero_plot.png"), width = 25, height = 15, dpi = 400)
 ```
 
 **Wet E.Coli EDA**
@@ -101,10 +99,10 @@ wet_fib_ecoli_plot <- wet_fib_ecoli |>
   ggplot(aes(x = result_log, y = beachname, fill = beachname)) +
   geom_boxplot(show.legend = FALSE) +
   scale_fill_manual(values = htb_brand_colors(length(unique(wet_fib_ecoli$beachname)))) +
-  facet_wrap(~ year, ncol = 4) +
+  facet_wrap(~ year, ncol = 11) +
   labs(x = "Log 10 Transformed E.Coli Concentration",
     y = "Beach Name") +
-  theme_minimal(base_size = 14) +
+  theme_bw(base_size = 14) +
   theme(
     strip.text = element_text(face = "bold"),
     panel.grid.minor = element_blank(),
@@ -112,7 +110,7 @@ wet_fib_ecoli_plot <- wet_fib_ecoli |>
     panel.background = element_rect(fill = "white", color = NA))
 
 # Save the plot
-ggsave(here("outputs", "wet_fib_ecoli_plot.png"), width = 9, height = 15, dpi = 400)
+ggsave(here("outputs", "wet_fib_ecoli_plot.png"), width = 25, height = 15, dpi = 400)
 ```
 
 **Wet Total Coliform EDA**
@@ -136,10 +134,10 @@ wet_fib_tot_coli_plot <- wet_fib_total_coliforms |>
   ggplot(aes(x = result_log, y = beachname,fill = beachname)) +
   geom_boxplot(show.legend = FALSE) +
   scale_fill_manual(values = htb_brand_colors(length(unique(wet_fib_total_coliforms$beachname)))) +
-  facet_wrap(~ year, ncol = 4) +
+  facet_wrap(~ year, ncol = 11) +
   labs(x = "Log 10 Transformed Total Coliforms Concentration",
     y = "Beach Name") +
-  theme_minimal(base_size = 14) +
+  theme_bw(base_size = 14) +
   theme(
     strip.text = element_text(face = "bold"),
     panel.grid.minor = element_blank(),
@@ -147,7 +145,7 @@ wet_fib_tot_coli_plot <- wet_fib_total_coliforms |>
     panel.background = element_rect(fill = "white", color = NA))
 
 # Save the plot
-ggsave(here("outputs", "wet_fib_tot_coli_plot.png"), width = 9, height = 15, dpi = 400)
+ggsave(here("outputs", "wet_fib_tot_coli_plot.png"), width = 25, height = 15, dpi = 400)
 ```
 
 **Wet Fecal Coliform EDA**
@@ -171,10 +169,10 @@ wet_fib_fec_coli_plot <- wet_fib_fecal_coliforms |>
   ggplot(aes(x = result_log, y = beachname,fill = beachname)) +
   geom_boxplot(show.legend = FALSE) +
   scale_fill_manual(values = htb_brand_colors(length(unique(wet_fib_fecal_coliforms$beachname)))) +
-  facet_wrap(~ year, ncol = 4) +
+  facet_wrap(~ year, ncol = 11) +
   labs(x = "Log 10 Transformed Fecal Coliforms Concentration",
     y = "Beach Name") +
-  theme_minimal(base_size = 14) +
+  theme_bw(base_size = 14) +
   theme(
     strip.text = element_text(face = "bold"),
     panel.grid.minor = element_blank(),
@@ -182,7 +180,7 @@ wet_fib_fec_coli_plot <- wet_fib_fecal_coliforms |>
     panel.background = element_rect(fill = "white", color = NA))
 
 # Save the plot
-ggsave(here("outputs", "wet_fib_fec_coli_plot.png"), width = 9, height = 15, dpi = 400)
+ggsave(here("outputs", "wet_fib_fec_coli_plot.png"), width = 25, height = 15, dpi = 400)
 ```
 
 The `echo: false` option disables the printing of code (only output is displayed).
