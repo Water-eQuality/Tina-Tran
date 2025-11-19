@@ -1,0 +1,187 @@
+---
+title: "beach_fib_average_monthly"
+format: html
+editor: visual
+---
+
+## Beach FIB Average Monthly
+
+Average all the beaches each month for each year. Then analyze on a year to year basis and have it be 1 year at a time.
+
+```{r, message = false, warning = false}
+# Load libraries 
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(ggridges)
+library(here)
+library(lubridate)
+library(slider)
+library(scales)
+library(janitor)
+```
+
+**Heal The Bay Brand Colors For GGplot**
+
+This code creates a color gradient for the graphs based on the Heal The Bay (HTB)'s brand colors. It creates 18 types of colors based on the 5 given brand colors.
+
+```{r, message = false, warning = false}
+htb_colors <- c(
+  "E. Coli" = "#40B4EB",
+  "Enterococcus" = "#2D94C8",
+  "Total Coliforms" = "#8FA9B9",
+  "Fecal Coliforms" = "#1479A9")
+```
+
+```{r, message = false, warning = false}
+# Read the file
+beach_data_2014_2024 <- read.csv(here("data","clean_master_beach_data_2014_2024.csv")) 
+
+# Clean the data
+beach_clean <- beach_data_2014_2024 |>
+  mutate(result_log = log10(result), # log 10 transform the data
+         sampledate = as.Date(sampledate), # change from chr to date
+         year = year(sampledate),
+         month = month(sampledate, label = TRUE, abbr = TRUE))
+```
+
+## Yearly distribution boxplots
+
+**2014 Yearly Box Plot**
+
+```{r, message = false, warning = false}
+#Create New Data Frame 
+beach_2014 <- beach_clean |> 
+  filter(year == 2014)
+
+# Create the average values of each month in the year 2014
+beach_monthly_2014 <- beach_2014 |> 
+  group_by(stationname, parameter, month) |> 
+  summarise(monthly_mean_log = mean(result_log, na.rm = TRUE),
+            n_samples = n(), .groups = "drop") # Ungroups the values to allow for plotting)
+```
+
+```{r}
+# Create box plot
+beach_monthly_2014_box <- ggplot(beach_monthly_2014,
+  aes(x = month, y = monthly_mean_log, fill = parameter)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +   # boxplot
+  geom_jitter(
+    aes(color = parameter),
+    position = position_jitter(width = 0.15, height = 0),
+    size = 1,alpha = 0.6) +                                               # points
+  facet_wrap(~ parameter, ncol = 2, scales = "free_y") +  # 4 panels
+  scale_fill_manual(values = htb_colors) +
+  scale_color_manual(values = htb_colors) +
+  labs(
+    title = "Monthly Average FIB Concentrations Across All Sites (2014)",
+    x = "Month",
+    y = "Monthly Mean Log₁₀ Concentration") +
+  theme_bw(base_size = 14) +
+  theme(strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none")
+
+# Save the Plot 
+ggsave( filename = here("outputs", "beach_fib_average_monthly", "beach_fib_monthly_2014_plot.png"),
+  plot = beach_monthly_2014_box, width = 15, height = 12, dpi = 400)
+```
+
+**2015 Yearly Box Plot**
+
+```{r}
+
+```
+
+**2016 Yearly Box Plot**
+
+**2017 Yearly Box Plot**
+
+**2018 Yearly Box Plot**
+
+**2019 Yearly Box Plot**
+
+**2020 Yearly Box Plot**
+
+**2021 Yearly Box Plot**
+
+**2022 Yearly Box Plot**
+
+**2023 Yearly Box Plot**
+
+**2024 Yearly Box Plot**
+
+# 
+
+```{r}
+
+```
+
+## Box Plot Graphs for Each Station Monthly on a Year to Year Basis
+
+```{r}
+# Split data by station ----
+station_list <- split(beach_monthly, beach_monthly$stationname)
+
+# Loop through each station ----
+walk(names(station_list), function(station) {
+  
+  # Extract that station's data
+  station_df <- station_list[[station]] |>
+    arrange(sampledate) # This code ensures that the sampledate column is in chronological order
+  
+  # Create the plot with 4 panels (one per parameter)
+  station_plot <- ggplot(station_df, aes(x = sampledate, y = log_result, color = parameter)) +
+    geom_line(aes(group = parameter), linewidth = 0.6, alpha = 0.8) +  # connect in date order
+      scale_color_manual(values = htb_colors) +              # apply your custom brand palette
+    geom_point(alpha = 0.6, size = 1.2) +
+    facet_wrap(~ parameter, scales = "free_y", nrow = 2) +  # 4 panels
+    scale_color_manual(values = htb_colors) +
+    scale_x_date(
+      date_breaks = "1 month",
+      date_labels = "%M"
+    ) +
+    labs(
+      title = paste0("10-Year Time Series: ", station),
+      x = "Month",
+      y = expression(Log[10]*"(Concentration)"),
+      color = "Parameter"
+    ) +
+    theme_bw(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+      axis.text.x = element_text(angle = 0, hjust = 1),
+      legend.position = "none",
+      panel.spacing = unit(1, "lines")
+    )
+  
+  # Save the PNG ----
+ ggsave(
+  filename = here("outputs", "beach_monthly_yty", paste0(gsub("[^A-Za-z0-9]", "_", station), "_timeseries.png")),
+  plot = station_plot,
+  width = 15,
+  height = 10,
+  dpi = 400)
+  
+  message("✅ Saved plot for: ", station)
+}) # yty represents year to year
+```
+
+```{r}
+```
+
+### Yearly distribution boxplots
+
+```{r}
+annual_box <- ggplot(data_yr, aes(x = factor(year), y = new_avg_score)) +
+  geom_boxplot() +
+  labs(x = "Year",
+       y = "Avg E.Coli value",
+       title = "Annual FIB trends across all sites") +
+  theme_bw()
+
+ggsave(here("figures", "annual_box.png"), plot = annual_box, width = 6, height = 3, units = "in", dpi = 300)
+```
+
+```         
+```

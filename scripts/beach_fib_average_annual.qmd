@@ -1,0 +1,66 @@
+---
+title: "beach_fib_average_annual"
+format: html
+editor: visual
+---
+
+## Beach FIB Annual Analysis 
+
+```{r, message = false, warning = false}
+# Load libraries 
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(ggridges)
+library(here)
+library(lubridate)
+library(slider)
+library(scales)
+library(janitor)
+```
+
+**Heal The Bay Brand Colors For GGplot**
+
+This code creates a color gradient for the graphs based on the Heal The Bay (HTB)'s brand colors. It creates 18 types of colors based on the 5 given brand colors.
+
+```{r}
+htb_colors <- c(
+  "E. coli" = "#40B4EB",
+  "Enterococcus" = "#2D94C8",
+  "Total Coliform" = "#8FA9B9",
+  "Fecal Coliform" = "#1479A9")
+```
+
+**Clean Data & Create Annual Data Frames**
+
+```{r}
+# Read the file
+beach_data_2014_2024 <- read.csv(here("data","clean_master_beach_data_2014_2024.csv")) 
+
+# Clean the data
+beach_clean <- beach_data_2014_2024 |>
+  mutate(result_log = log10(result), # log 10 transform the data
+         sampledate = as.Date(sampledate), # change from chr to date
+          year = year(sampledate))
+```
+
+**2014 Annual FIB Analysis**
+
+```{r}
+# Create New Data Frame
+beach_2014 <- beach_clean |>
+  filter(year == 2014)
+```
+
+# Nico's Code
+
+```{r}
+annual_box <- ggplot(beach_clean, aes(x = factor(year), y = new_avg_score)) +
+  geom_boxplot() +
+  labs(x = "Year",
+       y = "Avg E.Coli value",
+       title = "Annual FIB trends across all sites") +
+  theme_bw()
+
+ggsave(here("figures", "annual_box.png"), plot = annual_box, width = 6, height = 3, units = "in", dpi = 300)
+```

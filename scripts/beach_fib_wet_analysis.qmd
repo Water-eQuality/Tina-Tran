@@ -182,5 +182,3 @@ wet_fib_fec_coli_plot <- wet_fib_fecal_coliforms |>
 # Save the plot
 ggsave(here("outputs", "wet_fib_fec_coli_plot.png"), width = 25, height = 15, dpi = 400)
 ```
-
-The `echo: false` option disables the printing of code (only output is displayed).
