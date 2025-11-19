@@ -37,10 +37,10 @@ This code creates a color gradient for the graphs based on the Heal The Bay (HTB
 
 ```{r}
 htb_colors <- c(
-  "E. coli" = "#40B4EB",
+  "E. Coli" = "#40B4EB",
   "Enterococcus" = "#2D94C8",
-  "Total Coliform" = "#8FA9B9",
-  "Fecal Coliform" = "#1479A9")
+  "Total Coliforms" = "#8FA9B9",
+  "Fecal Coliforms" = "#1479A9")
 ```
 
 **10 Year Time Series Analysis - One PNG Per Station (4 Parameters)**
