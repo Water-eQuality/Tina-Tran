@@ -81,7 +81,7 @@ beach_ecoli_annual_plot <- ggplot(annual_ecoli,
 
 # Save the Plot 
 ggsave(here("outputs", "beach_fib_average_annually", "beach_ecoli_annual_plot.png"),
-  plot = beach_ecoli_annual_plot, width = 15, height = 12, dpi = 400)
+  plot = beach_ecoli_annual_plot, width = 15, height = 6, dpi = 400)
 ```
 
 ## Annual Average Enterococcus Trends Across All Sites
@@ -111,7 +111,7 @@ beach_entero_annual_plot <- ggplot(annual_enterococcus,
 
 # Save the Plot 
 ggsave(here("outputs", "beach_fib_average_annually", "beach_entero_annual_plot.png"),
-  plot = beach_entero_annual_plot, width = 15, height = 12, dpi = 400)
+  plot = beach_entero_annual_plot, width = 15, height = 6, dpi = 400)
 ```
 
 ## Annual Average Total Coliforms Trends Across All Sites
@@ -141,7 +141,7 @@ beach_tot_annual_plot <- ggplot(annual_total_coliforms,
 
 # Save the Plot 
 ggsave(here("outputs", "beach_fib_average_annually", "beach_tot_annual_plot.png"),
-  plot = beach_tot_annual_plot, width = 15, height = 12, dpi = 400)
+  plot = beach_tot_annual_plot, width = 15, height = 6, dpi = 400)
 ```
 
 ## Annual Average Fecal Coliforms Trends Across All Sites
@@ -171,5 +171,5 @@ beach_fec_annual_plot <- ggplot(annual_fecal_coliforms,
 
 # Save the Plot 
 ggsave(here("outputs", "beach_fib_average_annually", "beach_fec_annual_plot.png"),
-  plot = beach_fec_annual_plot, width = 15, height = 12, dpi = 400)
+  plot = beach_fec_annual_plot, width = 15, height = 6, dpi = 400)
 ```

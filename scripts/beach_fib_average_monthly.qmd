@@ -84,7 +84,7 @@ beach_monthly_2014_box <- ggplot(beach_monthly_2014,
 
 # Save the Plot 
 ggsave(filename = here("outputs", "beach_fib_average_monthly", "beach_fib_monthly_2014_plot.png"),
-  plot = beach_monthly_2014_box, width = 15, height = 12, dpi = 400)
+  plot = beach_monthly_2014_box, width = 21, height = 12, dpi = 400)
 ```
 
 **2015 Yearly Box Plot**
@@ -124,7 +124,7 @@ beach_monthly_2015_box <- ggplot(beach_monthly_2015,
 
 # Save the Plot 
 ggsave(filename = here("outputs", "beach_fib_average_monthly", "beach_fib_monthly_2015_plot.png"),
-  plot = beach_monthly_2015_box, width = 15, height = 12, dpi = 400)
+  plot = beach_monthly_2015_box, width = 21, height = 12, dpi = 400)
 ```
 
 **2016 Yearly Box Plot**
@@ -164,7 +164,7 @@ beach_monthly_2016_box <- ggplot(beach_monthly_2016,
 
 # Save the Plot 
 ggsave(filename = here("outputs", "beach_fib_average_monthly", "beach_fib_monthly_2016_plot.png"),
-  plot = beach_monthly_2016_box, width = 15, height = 12, dpi = 400)
+  plot = beach_monthly_2016_box, width = 21, height = 12, dpi = 400)
 ```
 
 **2017 Yearly Box Plot**
@@ -204,7 +204,7 @@ beach_monthly_2017_box <- ggplot(beach_monthly_2017,
 
 # Save the Plot 
 ggsave(filename = here("outputs", "beach_fib_average_monthly", "beach_fib_monthly_2017_plot.png"),
-  plot = beach_monthly_2017_box, width = 15, height = 12, dpi = 400)
+  plot = beach_monthly_2017_box, width = 21, height = 12, dpi = 400)
 ```
 
 **2018 Yearly Box Plot**
@@ -244,7 +244,7 @@ beach_monthly_2018_box <- ggplot(beach_monthly_2018,
 
 # Save the Plot 
 ggsave(filename = here("outputs", "beach_fib_average_monthly", "beach_fib_monthly_2018_plot.png"),
-  plot = beach_monthly_2018_box, width = 15, height = 12, dpi = 400)
+  plot = beach_monthly_2018_box, width = 21, height = 12, dpi = 400)
 ```
 
 **2019 Yearly Box Plot**
@@ -284,7 +284,7 @@ beach_monthly_2019_box <- ggplot(beach_monthly_2019,
 
 # Save the Plot 
 ggsave(filename = here("outputs", "beach_fib_average_monthly", "beach_fib_monthly_2019_plot.png"),
-  plot = beach_monthly_2019_box, width = 15, height = 12, dpi = 400)
+  plot = beach_monthly_2019_box, width = 21, height = 12, dpi = 400)
 ```
 
 **2020 Yearly Box Plot**
@@ -324,7 +324,7 @@ beach_monthly_2020_box <- ggplot(beach_monthly_2020,
 
 # Save the Plot 
 ggsave( filename = here("outputs", "beach_fib_average_monthly", "beach_fib_monthly_2020_plot.png"),
-  plot = beach_monthly_2020_box, width = 15, height = 12, dpi = 400)
+  plot = beach_monthly_2020_box, width = 21, height = 12, dpi = 400)
 ```
 
 **2021 Yearly Box Plot**
@@ -364,7 +364,7 @@ beach_monthly_2021_box <- ggplot(beach_monthly_2021,
 
 # Save the Plot 
 ggsave( filename = here("outputs", "beach_fib_average_monthly", "beach_fib_monthly_2021_plot.png"),
-  plot = beach_monthly_2021_box, width = 15, height = 12, dpi = 400)
+  plot = beach_monthly_2021_box, width = 21, height = 12, dpi = 400)
 ```
 
 **2022 Yearly Box Plot**
@@ -404,7 +404,7 @@ beach_monthly_2022_box <- ggplot(beach_monthly_2022,
 
 # Save the Plot 
 ggsave( filename = here("outputs", "beach_fib_average_monthly", "beach_fib_monthly_2022_plot.png"),
-  plot = beach_monthly_2022_box, width = 15, height = 12, dpi = 400)
+  plot = beach_monthly_2022_box, width = 21, height = 12, dpi = 400)
 ```
 
 **2023 Yearly Box Plot**
@@ -444,7 +444,7 @@ beach_monthly_2023_box <- ggplot(beach_monthly_2023,
 
 # Save the Plot 
 ggsave( filename = here("outputs", "beach_fib_average_monthly", "beach_fib_monthly_2023_plot.png"),
-  plot = beach_monthly_2023_box, width = 15, height = 12, dpi = 400)
+  plot = beach_monthly_2023_box, width = 21, height = 12, dpi = 400)
 ```
 
 **2024 Yearly Box Plot**
@@ -484,73 +484,7 @@ beach_monthly_2024_box <- ggplot(beach_monthly_2024,
 
 # Save the Plot 
 ggsave( filename = here("outputs", "beach_fib_average_monthly", "beach_fib_monthly_2024_plot.png"),
-  plot = beach_monthly_2024_box, width = 15, height = 12, dpi = 400)
-```
-
-## Box Plot Graphs for Each Station Monthly on a Year to Year Basis
-
-```{r}
-# Split data by station ----
-station_list <- split(beach_monthly, beach_monthly$stationname)
-
-# Loop through each station ----
-walk(names(station_list), function(station) {
-  
-  # Extract that station's data
-  station_df <- station_list[[station]] |>
-    arrange(sampledate) # This code ensures that the sampledate column is in chronological order
-  
-  # Create the plot with 4 panels (one per parameter)
-  station_plot <- ggplot(station_df, aes(x = sampledate, y = log_result, color = parameter)) +
-    geom_line(aes(group = parameter), linewidth = 0.6, alpha = 0.8) +  # connect in date order
-      scale_color_manual(values = htb_colors) +              # apply your custom brand palette
-    geom_point(alpha = 0.6, size = 1.2) +
-    facet_wrap(~ parameter, scales = "free_y", nrow = 2) +  # 4 panels
-    scale_color_manual(values = htb_colors) +
-    scale_x_date(
-      date_breaks = "1 month",
-      date_labels = "%M"
-    ) +
-    labs(
-      title = paste0("10-Year Time Series: ", station),
-      x = "Month",
-      y = expression(Log[10]*"(Concentration)"),
-      color = "Parameter"
-    ) +
-    theme_bw(base_size = 12) +
-    theme(
-      plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
-      axis.text.x = element_text(angle = 0, hjust = 1),
-      legend.position = "none",
-      panel.spacing = unit(1, "lines")
-    )
-  
-  # Save the PNG ----
- ggsave(
-  filename = here("outputs", "beach_monthly_yty", paste0(gsub("[^A-Za-z0-9]", "_", station), "_timeseries.png")),
-  plot = station_plot,
-  width = 15,
-  height = 10,
-  dpi = 400)
-  
-  message("✅ Saved plot for: ", station)
-}) # yty represents year to year
-```
-
-```{r}
-```
-
-### Yearly distribution boxplots
-
-```{r}
-annual_box <- ggplot(data_yr, aes(x = factor(year), y = new_avg_score)) +
-  geom_boxplot() +
-  labs(x = "Year",
-       y = "Avg E.Coli value",
-       title = "Annual FIB trends across all sites") +
-  theme_bw()
-
-ggsave(here("figures", "annual_box.png"), plot = annual_box, width = 6, height = 3, units = "in", dpi = 300)
+  plot = beach_monthly_2024_box, width = 21, height = 12, dpi = 400)
 ```
 
 ```         
