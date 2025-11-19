@@ -1,10 +1,24 @@
 ---
 title: "beach_fib_average_annual"
+author: "Tina Tran"
+date: "November 18, 2025"
 format: html
 editor: visual
+format: 
+  html:
+    embed-resources: true
+    code-fold: true
+    toc: true
+execute:
+  warning: false
+  message: false
+theme: "minty"
+df-print: kable
 ---
 
-## Beach FIB Annual Analysis
+# Exploratory Data Analysis For Beach FIB Only
+
+This document includes the exploratory data analysis (EDA) of beach FIB concentrations on an annual and monthly basis.
 
 ```{r, message = false, warning = false}
 # Load libraries 
@@ -19,7 +33,7 @@ library(scales)
 library(janitor)
 ```
 
-**Heal The Bay Brand Colors For GGplot**
+## **Heal The Bay Brand Colors** 
 
 This code creates a color gradient for the graphs based on the Heal The Bay (HTB)'s brand colors. It creates 18 types of colors based on the 5 given brand colors.
 
@@ -31,13 +45,17 @@ htb_colors <- c(
   "Fecal Coliforms" = "#1479A9")
 ```
 
-**Clean Data & Create Annual Data Frames**
+# Annual Beach FIB EDA
 
-```{r, message = false, warning = false}
-# Read the file
+## **Mutating Beach Data Frames**
+
+The data was mutated to add a year and month column for analysis. The mean, median, and variance was calculated for the log 10 transformed FIB concentrations grouped by each motioning station and year.
+
+```{r}
+# Read the data file
 beach_data_2014_2024 <- read.csv(here("data","clean_master_beach_data_2014_2024.csv")) 
 
-# Clean the data
+# Mutate the Beach Data 
 beach_clean <- beach_data_2014_2024 |>
   mutate(result_log = log10(result), # log 10 transform the data
          sampledate = as.Date(sampledate), # change from chr to date
@@ -49,13 +67,22 @@ beach_annual <- beach_clean |>
   group_by(stationname, parameter, year) |>
   summarise(
     annual_mean_log = mean(result_log, na.rm = TRUE),
+    annual_median_log = median(result_log, na.rm = TRUE),
+    annual_variance_log = var(result_log, na.rm = TRUE),
     n_samples = n(),
     .groups = "drop")
 ```
 
-## Annual Average E.Coli Trends Across All Sites
+```{r}
+# Read in the Precipitation Data
 
-```{r, message = false, warning = false}
+```
+
+## Mean Annual Average FIB Concentrations
+
+### Annual Average E.Coli Trends Across All Sites
+
+```{r}
 # Create a new dataframe for only yearly e.coli concentrations
 annual_ecoli <- beach_annual |>
   filter(parameter == "E. Coli")
@@ -72,21 +99,22 @@ beach_ecoli_annual_plot <- ggplot(annual_ecoli,
   scale_color_manual(values = htb_colors) +
   labs(title = "Annual Average E. Coli Concentrations Across All Sites",
     x = "Year",
-    y = "Annual Mean Log₁₀ Concentration") +
+    y = "Annual Mean Log10 Concentration") +
   theme_bw(base_size = 14) +
   theme(
     strip.text = element_text(face = "bold", size = 12),
     plot.title = element_text(face = "bold", hjust = 0.5),
     legend.position = "none")
+beach_ecoli_annual_plot
 
 # Save the Plot 
-ggsave(here("outputs", "beach_fib_average_annually", "beach_ecoli_annual_plot.png"),
-  plot = beach_ecoli_annual_plot, width = 15, height = 6, dpi = 400)
+#ggsave(here("outputs", "beach_fib_average_annually", #"beach_ecoli_annual_plot.png"),
+#  plot = beach_ecoli_annual_plot, width = 15, height = 6, dpi = 400)
 ```
 
-## Annual Average Enterococcus Trends Across All Sites
+### Annual Average Enterococcus Trends Across All Sites
 
-```{r, message = false, warning = false}
+```{r}
 annual_enterococcus <- beach_annual |>
   filter(parameter == "Enterococcus")
 
@@ -102,21 +130,22 @@ beach_entero_annual_plot <- ggplot(annual_enterococcus,
   scale_color_manual(values = htb_colors) +
   labs(title = "Annual Average Enterococcus Concentrations Across All Sites",
     x = "Year",
-    y = "Annual Mean Log₁₀ Concentration") +
+    y = "Annual Mean Log10 Concentration") +
   theme_bw(base_size = 14) +
   theme(
     strip.text = element_text(face = "bold", size = 12),
     plot.title = element_text(face = "bold", hjust = 0.5),
     legend.position = "none")
+beach_entero_annual_plot
 
 # Save the Plot 
-ggsave(here("outputs", "beach_fib_average_annually", "beach_entero_annual_plot.png"),
-  plot = beach_entero_annual_plot, width = 15, height = 6, dpi = 400)
+#ggsave(here("outputs", "beach_fib_average_annually", #"beach_entero_annual_plot.png"),
+#  plot = beach_entero_annual_plot, width = 15, height = 6, dpi = 400)
 ```
 
-## Annual Average Total Coliforms Trends Across All Sites
+### Annual Average Total Coliforms Trends Across All Sites
 
-```{r, message = false, warning = false}
+```{r}
 annual_total_coliforms <- beach_annual |>
   filter(parameter == "Total Coliforms")
 
@@ -132,21 +161,22 @@ beach_tot_annual_plot <- ggplot(annual_total_coliforms,
   scale_color_manual(values = htb_colors) +
   labs(title = "Annual Average Total Coliforms Concentrations Across All Sites",
     x = "Year",
-    y = "Annual Mean Log₁₀ Concentration") +
+    y = "Annual Mean Log10 Concentration") +
   theme_bw(base_size = 14) +
   theme(
     strip.text = element_text(face = "bold", size = 12),
     plot.title = element_text(face = "bold", hjust = 0.5),
     legend.position = "none")
+beach_tot_annual_plot
 
 # Save the Plot 
-ggsave(here("outputs", "beach_fib_average_annually", "beach_tot_annual_plot.png"),
-  plot = beach_tot_annual_plot, width = 15, height = 6, dpi = 400)
+#ggsave(here("outputs", "beach_fib_average_annually", #"beach_tot_annual_plot.png"),
+#  plot = beach_tot_annual_plot, width = 15, height = 6, dpi = 400)
 ```
 
-## Annual Average Fecal Coliforms Trends Across All Sites
+### Annual Average Fecal Coliforms Trends Across All Sites
 
-```{r, message = false, warning = false}
+```{r}
 annual_fecal_coliforms <- beach_annual |>
   filter(parameter == "Fecal Coliforms")
 
@@ -162,14 +192,493 @@ beach_fec_annual_plot <- ggplot(annual_fecal_coliforms,
   scale_color_manual(values = htb_colors) +
   labs(title = "Annual Average Fecal Coliforms Concentrations Across All Sites",
     x = "Year",
-    y = "Annual Mean Log₁₀ Concentration") +
+    y = "Annual Mean Log10 Concentration") +
   theme_bw(base_size = 14) +
   theme(
     strip.text = element_text(face = "bold", size = 12),
     plot.title = element_text(face = "bold", hjust = 0.5),
     legend.position = "none")
+beach_fec_annual_plot
 
 # Save the Plot 
-ggsave(here("outputs", "beach_fib_average_annually", "beach_fec_annual_plot.png"),
-  plot = beach_fec_annual_plot, width = 15, height = 6, dpi = 400)
+#ggsave(here("outputs", "beach_fib_average_annually", #"beach_fec_annual_plot.png"),
+#  plot = beach_fec_annual_plot, width = 15, height = 6, dpi = 400)
+```
+
+# Beach FIB Average Monthly on a Year-to-Year Basis
+
+Average all the beaches each month for each year. Then analyze on a year to year basis and have it be 1 year at a time.
+
+## **2014 Yearly Box Plot**
+
+### Mean
+
+```{r}
+#Create New Data Frame 
+beach_2014 <- beach_clean |> 
+  filter(year == 2014)
+
+# Create the average values of each month in the year 2014
+beach_monthly_2014 <- beach_2014 |> 
+  group_by(stationname, parameter, month) |> 
+  summarise(monthly_mean_log = mean(result_log, na.rm = TRUE),
+            n_samples = n(), .groups = "drop") # Ungroups the values to allow for plotting)
+```
+
+```{r}
+# Create box plot
+beach_monthly_2014_box <- ggplot(beach_monthly_2014,
+  aes(x = month, y = monthly_mean_log, fill = parameter)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +   # boxplot
+  geom_jitter(
+    aes(color = parameter),
+    position = position_jitter(width = 0.15, height = 0),
+    size = 1,alpha = 0.6) +                                               # points
+  facet_wrap(~ parameter, ncol = 2, scales = "free_y") +  # 4 panels
+  scale_fill_manual(values = htb_colors) +
+  scale_color_manual(values = htb_colors) +
+  labs(
+    title = "Monthly Average FIB Concentrations Across All Sites (2014)",
+    x = "Month",
+    y = "Monthly Mean Log10 Concentration") +
+  theme_bw(base_size = 14) +
+  theme(strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none")
+beach_monthly_2014_box
+
+# Save the Plot 
+#ggsave(filename = here("outputs", "beach_fib_average_monthly", #"beach_fib_monthly_2014_plot.png"),
+#  plot = beach_monthly_2014_box, width = 21, height = 12, dpi = 400)
+```
+
+## **2015 Yearly Box Plot**
+
+### Mean
+
+```{r}
+#Create New Data Frame 
+beach_2015 <- beach_clean |> 
+  filter(year == 2015)
+
+# Create the average values of each month in the year 2014
+beach_monthly_2015 <- beach_2015 |> 
+  group_by(stationname, parameter, month) |> 
+  summarise(monthly_mean_log = mean(result_log, na.rm = TRUE),
+            n_samples = n(), .groups = "drop") # Ungroups the values to allow for plotting)
+```
+
+```{r}
+# Create box plot
+beach_monthly_2015_box <- ggplot(beach_monthly_2015,
+  aes(x = month, y = monthly_mean_log, fill = parameter)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +   # boxplot
+  geom_jitter(
+    aes(color = parameter),
+    position = position_jitter(width = 0.15, height = 0),
+    size = 1,alpha = 0.6) +                                               # points
+  facet_wrap(~ parameter, ncol = 2, scales = "free_y") +  # 4 panels
+  scale_fill_manual(values = htb_colors) +
+  scale_color_manual(values = htb_colors) +
+  labs(
+    title = "Monthly Average FIB Concentrations Across All Sites (2015)",
+    x = "Month",
+    y = "Monthly Mean Log10 Concentration") +
+  theme_bw(base_size = 14) +
+  theme(strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none")
+beach_monthly_2015_box
+
+# Save the Plot 
+#ggsave(filename = here("outputs", "beach_fib_average_monthly", #"beach_fib_monthly_2015_plot.png"),
+#  plot = beach_monthly_2015_box, width = 21, height = 12, dpi = 400)
+```
+
+## **2016 Yearly Box Plot**
+
+### Mean
+
+```{r}
+#Create New Data Frame 
+beach_2016 <- beach_clean |> 
+  filter(year == 2016)
+
+# Create the average values of each month in the year 2014
+beach_monthly_2016 <- beach_2016 |> 
+  group_by(stationname, parameter, month) |> 
+  summarise(monthly_mean_log = mean(result_log, na.rm = TRUE),
+            n_samples = n(), .groups = "drop") # Ungroups the values to allow for plotting)
+```
+
+```{r}
+# Create box plot
+beach_monthly_2016_box <- ggplot(beach_monthly_2016,
+  aes(x = month, y = monthly_mean_log, fill = parameter)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +   # boxplot
+  geom_jitter(
+    aes(color = parameter),
+    position = position_jitter(width = 0.15, height = 0),
+    size = 1,alpha = 0.6) +                                               # points
+  facet_wrap(~ parameter, ncol = 2, scales = "free_y") +  # 4 panels
+  scale_fill_manual(values = htb_colors) +
+  scale_color_manual(values = htb_colors) +
+  labs(
+    title = "Monthly Average FIB Concentrations Across All Sites (2016)",
+    x = "Month",
+    y = "Monthly Mean Log10 Concentration") +
+  theme_bw(base_size = 14) +
+  theme(strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none")
+beach_monthly_2016_box
+
+# Save the Plot 
+#ggsave(filename = here("outputs", "beach_fib_average_monthly", #"beach_fib_monthly_2016_plot.png"),
+#  plot = beach_monthly_2016_box, width = 21, height = 12, dpi = 400)
+```
+
+## **2017 Yearly Box Plot**
+
+### Mean
+
+```{r}
+#Create New Data Frame 
+beach_2017 <- beach_clean |> 
+  filter(year == 2017)
+
+# Create the average values of each month in the year 2014
+beach_monthly_2017 <- beach_2017 |> 
+  group_by(stationname, parameter, month) |> 
+  summarise(monthly_mean_log = mean(result_log, na.rm = TRUE),
+            n_samples = n(), .groups = "drop") # Ungroups the values to allow for plotting)
+```
+
+```{r}
+# Create box plot
+beach_monthly_2017_box <- ggplot(beach_monthly_2017,
+  aes(x = month, y = monthly_mean_log, fill = parameter)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +   # boxplot
+  geom_jitter(
+    aes(color = parameter),
+    position = position_jitter(width = 0.15, height = 0),
+    size = 1,alpha = 0.6) +                                               # points
+  facet_wrap(~ parameter, ncol = 2, scales = "free_y") +  # 4 panels
+  scale_fill_manual(values = htb_colors) +
+  scale_color_manual(values = htb_colors) +
+  labs(
+    title = "Monthly Average FIB Concentrations Across All Sites (2017)",
+    x = "Month",
+    y = "Monthly Mean Log10 Concentration") +
+  theme_bw(base_size = 14) +
+  theme(strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none")
+beach_monthly_2017_box
+
+# Save the Plot 
+#ggsave(filename = here("outputs", "beach_fib_average_monthly", #"beach_fib_monthly_2017_plot.png"),
+#  plot = beach_monthly_2017_box, width = 21, height = 12, dpi = 400)
+```
+
+## **2018 Yearly Box Plot**
+
+### Mean
+
+```{r}
+#Create New Data Frame 
+beach_2018 <- beach_clean |> 
+  filter(year == 2018)
+
+# Create the average values of each month in the year 2014
+beach_monthly_2018 <- beach_2018 |> 
+  group_by(stationname, parameter, month) |> 
+  summarise(monthly_mean_log = mean(result_log, na.rm = TRUE),
+            n_samples = n(), .groups = "drop") # Ungroups the values to allow for plotting)
+```
+
+```{r}
+# Create box plot
+beach_monthly_2018_box <- ggplot(beach_monthly_2018,
+  aes(x = month, y = monthly_mean_log, fill = parameter)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +   # boxplot
+  geom_jitter(
+    aes(color = parameter),
+    position = position_jitter(width = 0.15, height = 0),
+    size = 1,alpha = 0.6) +                                               # points
+  facet_wrap(~ parameter, ncol = 2, scales = "free_y") +  # 4 panels
+  scale_fill_manual(values = htb_colors) +
+  scale_color_manual(values = htb_colors) +
+  labs(
+    title = "Monthly Average FIB Concentrations Across All Sites (2018)",
+    x = "Month",
+    y = "Monthly Mean Log10 Concentration") +
+  theme_bw(base_size = 14) +
+  theme(strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none")
+beach_monthly_2018_box
+
+# Save the Plot 
+#ggsave(filename = here("outputs", "beach_fib_average_monthly", #"beach_fib_monthly_2018_plot.png"),
+#  plot = beach_monthly_2018_box, width = 21, height = 12, dpi = 400)
+```
+
+## **2019 Yearly Box Plot**
+
+### Mean
+
+```{r}
+#Create New Data Frame 
+beach_2019 <- beach_clean |> 
+  filter(year == 2019)
+
+# Create the average values of each month in the year 2014
+beach_monthly_2019 <- beach_2019 |> 
+  group_by(stationname, parameter, month) |> 
+  summarise(monthly_mean_log = mean(result_log, na.rm = TRUE),
+            n_samples = n(), .groups = "drop") # Ungroups the values to allow for plotting)
+```
+
+```{r}
+# Create box plot
+beach_monthly_2019_box <- ggplot(beach_monthly_2019,
+  aes(x = month, y = monthly_mean_log, fill = parameter)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +   # boxplot
+  geom_jitter(
+    aes(color = parameter),
+    position = position_jitter(width = 0.15, height = 0),
+    size = 1,alpha = 0.6) +                                               # points
+  facet_wrap(~ parameter, ncol = 2, scales = "free_y") +  # 4 panels
+  scale_fill_manual(values = htb_colors) +
+  scale_color_manual(values = htb_colors) +
+  labs(
+    title = "Monthly Average FIB Concentrations Across All Sites (2019)",
+    x = "Month",
+    y = "Monthly Mean Log10 Concentration") +
+  theme_bw(base_size = 14) +
+  theme(strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none")
+beach_monthly_2019_box
+
+# Save the Plot 
+#ggsave(filename = here("outputs", "beach_fib_average_monthly", #"beach_fib_monthly_2019_plot.png"),
+#  plot = beach_monthly_2019_box, width = 21, height = 12, dpi = 400)
+```
+
+## **2020 Yearly Box Plot**
+
+### Mean
+
+```{r}
+#Create New Data Frame 
+beach_2020 <- beach_clean |> 
+  filter(year == 2020)
+
+# Create the average values of each month in the year 2014
+beach_monthly_2020 <- beach_2020 |> 
+  group_by(stationname, parameter, month) |> 
+  summarise(monthly_mean_log = mean(result_log, na.rm = TRUE),
+            n_samples = n(), .groups = "drop") # Ungroups the values to allow for plotting)
+```
+
+```{r}
+# Create box plot
+beach_monthly_2020_box <- ggplot(beach_monthly_2020,
+  aes(x = month, y = monthly_mean_log, fill = parameter)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +   # boxplot
+  geom_jitter(
+    aes(color = parameter),
+    position = position_jitter(width = 0.15, height = 0),
+    size = 1,alpha = 0.6) +                                               # points
+  facet_wrap(~ parameter, ncol = 2, scales = "free_y") +  # 4 panels
+  scale_fill_manual(values = htb_colors) +
+  scale_color_manual(values = htb_colors) +
+  labs(
+    title = "Monthly Average FIB Concentrations Across All Sites (2020)",
+    x = "Month",
+    y = "Monthly Mean Log10 Concentration") +
+  theme_bw(base_size = 14) +
+  theme(strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none")
+beach_monthly_2020_box
+
+# Save the Plot 
+#ggsave( filename = here("outputs", "beach_fib_average_monthly", #"beach_fib_monthly_2020_plot.png"),
+#  plot = beach_monthly_2020_box, width = 21, height = 12, dpi = 400)
+```
+
+## **2021 Yearly Box Plot**
+
+### Mean
+
+```{r}
+#Create New Data Frame 
+beach_2021 <- beach_clean |> 
+  filter(year == 2021)
+
+# Create the average values of each month in the year 2014
+beach_monthly_2021 <- beach_2021 |> 
+  group_by(stationname, parameter, month) |> 
+  summarise(monthly_mean_log = mean(result_log, na.rm = TRUE),
+            n_samples = n(), .groups = "drop") # Ungroups the values to allow for plotting)
+```
+
+```{r}
+# Create box plot
+beach_monthly_2021_box <- ggplot(beach_monthly_2021,
+  aes(x = month, y = monthly_mean_log, fill = parameter)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +   # boxplot
+  geom_jitter(
+    aes(color = parameter),
+    position = position_jitter(width = 0.15, height = 0),
+    size = 1,alpha = 0.6) +                                               # points
+  facet_wrap(~ parameter, ncol = 2, scales = "free_y") +  # 4 panels
+  scale_fill_manual(values = htb_colors) +
+  scale_color_manual(values = htb_colors) +
+  labs(
+    title = "Monthly Average FIB Concentrations Across All Sites (2021)",
+    x = "Month",
+    y = "Monthly Mean Log10 Concentration") +
+  theme_bw(base_size = 14) +
+  theme(strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none")
+beach_monthly_2021_box
+
+# Save the Plot 
+#ggsave( filename = here("outputs", "beach_fib_average_monthly", #"beach_fib_monthly_2021_plot.png"),
+#  plot = beach_monthly_2021_box, width = 21, height = 12, dpi = 400)
+```
+
+## **2022 Yearly Box Plot**
+
+### **Mean**
+
+```{r}
+#Create New Data Frame 
+beach_2022 <- beach_clean |> 
+  filter(year == 2022)
+
+# Create the average values of each month in the year 2014
+beach_monthly_2022 <- beach_2022 |> 
+  group_by(stationname, parameter, month) |> 
+  summarise(monthly_mean_log = mean(result_log, na.rm = TRUE),
+            n_samples = n(), .groups = "drop") # Ungroups the values to allow for plotting)
+
+```
+
+```{r}
+# Create box plot
+beach_monthly_2022_box <- ggplot(beach_monthly_2022,
+  aes(x = month, y = monthly_mean_log, fill = parameter)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +   # boxplot
+  geom_jitter(
+    aes(color = parameter),
+    position = position_jitter(width = 0.15, height = 0),
+    size = 1,alpha = 0.6) +                                               # points
+  facet_wrap(~ parameter, ncol = 2, scales = "free_y") +  # 4 panels
+  scale_fill_manual(values = htb_colors) +
+  scale_color_manual(values = htb_colors) +
+  labs(
+    title = "Monthly Average FIB Concentrations Across All Sites (2022)",
+    x = "Month",
+    y = "Monthly Mean Log10 Concentration") +
+  theme_bw(base_size = 14) +
+  theme(strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none")
+beach_monthly_2022_box
+
+# Save the Plot 
+#ggsave( filename = here("outputs", "beach_fib_average_monthly", #"beach_fib_monthly_2022_plot.png"),
+#  plot = beach_monthly_2022_box, width = 21, height = 12, dpi = 400)
+```
+
+## **2023 Yearly Box Plot**
+
+### Mean
+
+```{r}
+#Create New Data Frame 
+beach_2023 <- beach_clean |> 
+  filter(year == 2023)
+
+# Create the average values of each month in the year 2014
+beach_monthly_2023 <- beach_2023 |> 
+  group_by(stationname, parameter, month) |> 
+  summarise(monthly_mean_log = mean(result_log, na.rm = TRUE),
+            n_samples = n(), .groups = "drop") # Ungroups the values to allow for plotting)
+```
+
+```{r}
+# Create box plot
+beach_monthly_2023_box <- ggplot(beach_monthly_2023,
+  aes(x = month, y = monthly_mean_log, fill = parameter)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +   # boxplot
+  geom_jitter(
+    aes(color = parameter),
+    position = position_jitter(width = 0.15, height = 0),
+    size = 1,alpha = 0.6) +                                               # points
+  facet_wrap(~ parameter, ncol = 2, scales = "free_y") +  # 4 panels
+  scale_fill_manual(values = htb_colors) +
+  scale_color_manual(values = htb_colors) +
+  labs(
+    title = "Monthly Average FIB Concentrations Across All Sites (2023)",
+    x = "Month",
+    y = "Monthly Mean Log10 Concentration") +
+  theme_bw(base_size = 14) +
+  theme(strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none")
+beach_monthly_2023_box
+
+# Save the Plot 
+#ggsave( filename = here("outputs", "beach_fib_average_monthly", #"beach_fib_monthly_2023_plot.png"),
+#  plot = beach_monthly_2023_box, width = 21, height = 12, dpi = 400)
+```
+
+## **2024 Yearly Box Plot**
+
+### Mean
+
+```{r}
+#Create New Data Frame 
+beach_2024 <- beach_clean |> 
+  filter(year == 2024)
+
+# Create the average values of each month in the year 2014
+beach_monthly_2024 <- beach_2024 |> 
+  group_by(stationname, parameter, month) |> 
+  summarise(monthly_mean_log = mean(result_log, na.rm = TRUE),
+            n_samples = n(), .groups = "drop") # Ungroups the values to allow for plotting)
+```
+
+```{r}
+# Create box plot
+beach_monthly_2024_box <- ggplot(beach_monthly_2024,
+  aes(x = month, y = monthly_mean_log, fill = parameter)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +   # boxplot
+  geom_jitter(
+    aes(color = parameter),
+    position = position_jitter(width = 0.15, height = 0),
+    size = 1,alpha = 0.6) +                                               # points
+  facet_wrap(~ parameter, ncol = 2, scales = "free_y") +  # 4 panels
+  scale_fill_manual(values = htb_colors) +
+  scale_color_manual(values = htb_colors) +
+  labs(
+    title = "Monthly Average FIB Concentrations Across All Sites (2024)",
+    x = "Month",
+    y = "Monthly Mean Log10 Concentration") +
+  theme_bw(base_size = 14) +
+  theme(strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none")
+beach_monthly_2024_box
+
+# Save the Plot 
+#ggsave( filename = here("outputs", "beach_fib_average_monthly", #"beach_fib_monthly_2024_plot.png"),
+#  plot = beach_monthly_2024_box, width = 21, height = 12, dpi = 400)
 ```

@@ -29,6 +29,7 @@ beach_clean <- read.csv(here("data", "clean_master_beach_data_2014_2024.csv")) |
   mutate(log_result = log10(result),     # log 10 transformed the result column
          sampledate = as.Date(sampledate)) # make sampledate into a date from a chr
 
+unique(beach_clean$beachname)
 ```
 
 **Heal The Bay Brand Colors For GGplot**
