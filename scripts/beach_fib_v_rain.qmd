@@ -1,0 +1,297 @@
+---
+title: "EDA For Beach FIB V Rain"
+author: "Tina Tran"
+date: "November 19, 2025"
+format: html
+editor: visual
+format: 
+  html:
+    embed-resources: true
+    code-fold: true
+    toc: true
+execute:
+  warning: false
+  message: false
+theme: "minty"
+df-print: kable
+---
+
+# Exploratory Data Analysis For Beach FIB v Rain
+
+```{r}
+# Load libraries 
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(ggridges)
+library(here)
+library(lubridate)
+library(slider)
+library(scales)
+library(janitor)
+```
+
+## **Heal The Bay Brand Colors**
+
+This code assigns the the following colors to each FIB parameter: E. Coli, Enterococcus, Total Coliforms, and Fecal Coliforms. It also creates another data frame to create the HTB gradient.
+
+```{r}
+htb_colors <- c(
+  "E. Coli" = "#40B4EB",
+  "Enterococcus" = "#2D94C8",
+  "Total Coliforms" = "#8FA9B9",
+  "Fecal Coliforms" = "#1479A9")
+
+# HTB Gradient 
+htb_gradient <- colorRampPalette(htb_colors)(11)
+htb_gradient 
+```
+
+## Mutate FIB Concentration & Precipitation Data
+
+```{r}
+# Read the data file
+beach_data_2014_2024 <- read.csv(here("data","clean_master_beach_data_2014_2024.csv")) 
+
+# Mutate the Beach Data 
+beach_clean <- beach_data_2014_2024 |>
+  mutate(result_log = log10(result), # log 10 transform the data
+         sampledate = as.Date(sampledate), # change from chr to date
+          year = year(sampledate),  # extract year from sampledate
+          month = month(sampledate, label = TRUE, abbr = TRUE)) # extract month from sampledate
+
+# Creating a summary of the annual log results of each fib parameter for each station
+beach_annual <- beach_clean |>
+  group_by(stationname, parameter, year, beachname) |>
+  summarise(
+    annual_mean_log = mean(result_log, na.rm = TRUE),
+    annual_median_log = median(result_log, na.rm = TRUE),
+    annual_variance_log = var(result_log, na.rm = TRUE),
+    n_samples = n(),
+    .groups = "drop")
+```
+
+```{r}
+# Read in the Precipitation Data
+precip_2014_2024 <- read.csv(here("data","precipitation_clean_2014_2024.csv")) 
+
+# Mutate the Precip Data
+precip_clean <- precip_2014_2024 |>
+  mutate(date = as.Date(date), # Change date from chr to date
+         year = year(date), # extract the year from the date
+         month = month(date, label = TRUE, abbr = TRUE), # extract month from the date
+         wet = prcp_in > 0.1) # defines wet weather as >0.1 inches
+
+# Separate wet vs dry data
+wet_weather <- precip_clean |>  filter(wet == TRUE)
+
+dry_weather <- precip_clean |> filter(wet == FALSE)
+
+
+# Total the Annual Precipitation Each Year 
+precip_annual <- precip_clean |>
+  group_by(year) |>
+  summarise(
+    total_rain_in = sum(prcp_in, na.rm = TRUE),
+    .groups = "drop")
+
+# Join the Precipi Data with the FIB Concentrations Annual Data
+join_prcp_fib_data <- beach_annual |>
+  left_join(precip_annual, by = "year")
+
+
+join_fib_prcp_bin <- join_prcp_fib_data |>
+  mutate(rain_bin = cut(total_rain_in,
+                        breaks = 4, 
+                        labels = c("Low", "Moderate", "High", "Very High")))
+```
+
+# Precipitation
+
+## Total Annual Precipitation
+
+```{r}
+# Create a summary of the precipitation for each year 
+rain_summary_table <- precip_clean|>
+  group_by(year) |>
+summarize(var=var(prcp_in),
+            min_rain = min(prcp_in),
+            IQ25_rain = quantile(prcp_in, probs = 0.25), 
+            mean_rain = mean(prcp_in),
+            median_rain = median(prcp_in),
+            IQ75_rain = quantile(prcp_in, probs = 0.75),
+            max_rain = max(prcp_in))
+rain_summary_table 
+
+# Calculate the average total rainfall over the 10 years
+mean_total_rain <- precip_annual |> 
+  summarise(mean_rain_event = mean(total_rain_in), na.rm = TRUE) |>
+  pull(mean_rain_event) # this extracts the numeric valye of the mean rain event so that it can be plotted in ggplot
+
+# Plot the total precipitation for each year 
+rain_bar <- ggplot(precip_annual, 
+                   aes(x = factor(year), y = total_rain_in)) +
+  geom_col(fill = "#1479A9") + 
+    geom_hline(yintercept = mean_total_rain, linetype = "dashed", linewidth = 1, color = "black")+
+  labs(#title = "Total Annual Precipitation (2014–2024)",
+    x = "Year",
+    y = "Total Rainfall (inches)") +
+  theme_bw(base_size = 14)
+rain_bar
+
+# Calculate the overall mean precipitation for all 10 years
+overall_mean_rain <- precip_clean |> 
+  summarise(mean_rain_Event = mean(prcp_in), na.rm = TRUE)
+overall_mean_rain
+
+```
+
+## Monthly Average Rainfall 
+
+This code will total the amount of rainfall for each month for each year.
+
+```{r}
+# Create the data frame
+precip_monthly <- precip_clean |>
+  group_by(year,month) |> # group the data by year and month
+  summarise(total_rain_in = sum(prcp_in, na.rm = TRUE), # sum the precip total
+    .groups = "drop")
+
+# Creating the graph for the data
+precip_monthly_plot <- ggplot(precip_monthly,
+  aes(x = total_rain_in, fill = factor(year), y = factor(year))) +
+  geom_col() +
+  facet_wrap(~ month, ncol = 12) +
+  scale_fill_manual(values = htb_gradient) +
+  labs(x = "Total Rainfall (inches)", y = "Year",
+    fill = "Year") +
+  theme_bw(base_size = 14) +
+  theme(
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text.x = element_text(angle = 90, vjust = 0.5))
+precip_monthly_plot
+
+# Save the bar graph
+ggsave(here("outputs", "precip_only", "monthly_precip.png"), 
+      plot = precip_monthly_plot, width = 14, height = 8, dpi = 500)
+```
+
+# E. coli v Rain
+
+**Question to answer:** **How does total rainfall relate to annual FIB concentrations?**
+
+Each plot represents a monitoring station for a specific year. The annual median e.coli concentrations were calculated for each monitoring site per year, and joined to the precipitation data's total rainfall data in inches.
+
+There is a lot of variability in the annual median e.coli concentrations and understanding its relationship with the rainfall visually.
+
+```{r}
+# Filter out E.coli
+join_ecoli <- join_prcp_fib_data |>
+  filter(parameter == "E. Coli")
+
+ecoli_prcp_med_point <- ggplot(join_ecoli, 
+    aes(x = total_rain_in,
+        y = annual_median_log,
+        color = factor(year),       # year shown as color
+        shape = stationname)) +     # station shown as shape
+  geom_point(alpha = 0.8, size = 3) +
+  labs(
+    title = "Annual Median E. Coli vs Rainfall by Year and Station",
+    x = "Total Annual Rainfall (inches)",
+    y = "Median Log10 E. Coli Concentration",
+    color = "Year",
+    shape = "Station"
+  ) +
+  theme_bw(base_size = 14)
+ecoli_prcp_med_point
+```
+
+## Variance of E. Coli v Rain
+
+```{r}
+# Scatter Plot of annual variance E.Coli vs rainfall
+ecoli_prcp_var_point <- ggplot(join_ecoli, 
+    aes(x = total_rain_in,
+        y = annual_variance_log)) +
+  geom_point(alpha = 0.7, size = 2, color = "#40B4EB") +
+  labs(
+    title = "Annual Variance E. Coli Concentrations vs Total Rainfall",
+    x = "Total Annual Rainfall (inches)",
+    y = "Varaince Log10 E. Coli Concentration"
+  ) +
+  theme_bw(base_size = 14)
+ecoli_prcp_var_point
+
+# Note there are 5 NA values for variance because there was only 1 sample
+```
+
+Box plot vision create a min, IQ25, median, IQ75, max of the annual median values of each, group by year
+
+```{r}
+
+```
+
+## Enterococcus v Rain
+
+```{r}
+# Filter out Enterococcus
+join_enterococcus <- join_prcp_fib_data |>
+  filter(parameter == "Enterococcus")
+
+
+# Scatter Plot of annual median Enterococcus vs Total rainfall
+entero_prcp_med_point <- ggplot(join_enterococcus, 
+    aes(x = total_rain_in,
+        y = annual_median_log)) +
+  geom_point(alpha = 0.7, size = 2, color = "#40B4EB") +
+  labs(
+    title = "Annual Median Enterococcus Concentrations vs Rainfall",
+    x = "Total Annual Rainfall (inches)",
+    y = "Median Log10 Enterococcus Concentration"
+  ) +
+  theme_bw(base_size = 14)
+entero_prcp_med_point
+```
+
+## Total Coliforms v Rain
+
+```{r}
+# Filter out Total Coliforms
+join_total_coliforms <- join_prcp_fib_data |>
+  filter(parameter == "Total Coliforms")
+
+
+# Scatter Plot of annual median Total Coliforms vs Total rainfall
+tot_prcp_med_point <- ggplot(join_total_coliforms, 
+    aes(x = total_rain_in,
+        y = annual_median_log)) +
+  geom_point(alpha = 0.7, size = 2, color = "#40B4EB") +
+  labs(
+    title = "Annual Median Total Coliforms Concentrations vs Rainfall",
+    x = "Total Annual Rainfall (inches)",
+    y = "Median Log10 Total Coliforms Concentration"
+  ) +
+  theme_bw(base_size = 14)
+tot_prcp_med_point
+```
+
+## Fecal Coliforms v Rain
+
+```{r}
+# Filter out Enterococcus
+join_fecal_coliforms <- join_prcp_fib_data |>
+  filter(parameter == "Fecal Coliforms")
+
+
+# Scatter Plot of annual median E.Coli vs rainfall
+fec_prcp_med_point <- ggplot(join_fecal_coliforms, 
+    aes(x = total_rain_in,
+        y = annual_median_log)) +
+  geom_point(alpha = 0.7, size = 2, color = "#40B4EB") +
+  labs(
+    title = "Annual Median Fecal Coliforms Concentrations vs Rainfall",
+    x = "Total Annual Rainfall (inches)",
+    y = "Median Log10 Fecal Coliforms Concentration") +
+  theme_bw(base_size = 14)
+fec_prcp_med_point
+```

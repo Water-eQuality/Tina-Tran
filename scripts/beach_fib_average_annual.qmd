@@ -33,9 +33,9 @@ library(scales)
 library(janitor)
 ```
 
-## **Heal The Bay Brand Colors** 
+## **Heal The Bay Brand Colors**
 
-This code creates a color gradient for the graphs based on the Heal The Bay (HTB)'s brand colors. It creates 18 types of colors based on the 5 given brand colors.
+This code assigns the the following colors to each FIB parameter: E. Coli, Enterococcus, Total Coliforms, and Fecal Coliforms.
 
 ```{r, message = false, warning = false}
 htb_colors <- c(
@@ -59,8 +59,8 @@ beach_data_2014_2024 <- read.csv(here("data","clean_master_beach_data_2014_2024.
 beach_clean <- beach_data_2014_2024 |>
   mutate(result_log = log10(result), # log 10 transform the data
          sampledate = as.Date(sampledate), # change from chr to date
-          year = year(sampledate), 
-          month = month(sampledate, label = TRUE, abbr = TRUE))
+          year = year(sampledate),  # extract year from sampledate
+          month = month(sampledate, label = TRUE, abbr = TRUE)) # extract month from sampledate
 
 # Creating a summary of the annual mean log results of each fib parameter for each station
 beach_annual <- beach_clean |>
@@ -75,12 +75,42 @@ beach_annual <- beach_clean |>
 
 ```{r}
 # Read in the Precipitation Data
+precip_2014_2024 <- read.csv(here("data","precipitation_clean_2014_2024.csv")) 
+
+# Mutate the Precip Data
+precip_clean <- precip_2014_2024 |>
+  mutate(date = as.Date(date), # Change date from chr to date
+         year = year(date), # extract the year from the date
+         month = month(date, label = TRUE, abbr = TRUE), # extract month from the date
+         wet = prcp_in > 0.1) # defines wet weather as >0.1 inches
+
+# Separate wet vs dry data
+wet_weather <- precip_clean |>  
+  filter(wet == TRUE)
+
+dry_weather <- precip_clean |> 
+  filter(wet == FALSE)
+
+
+# Total the Annual Precipitation Each Year 
+precip_annual <- precip_clean |>
+  group_by(year) |>
+  summarise(
+    total_rain_in = sum(prcp_in, na.rm = TRUE),
+    .groups = "drop")
+
+# Join the Precipi Data with the FIB Concentrations Annual Data
+join_prcp_fib_data <- beach_annual |>
+  left_join(precip_annual, by = "year")
+
 
 ```
 
 ## Mean Annual Average FIB Concentrations
 
-### Annual Average E.Coli Trends Across All Sites
+### E.Coli
+
+#### Mean E.Coli Trends Across All Sites Annually
 
 ```{r}
 # Create a new dataframe for only yearly e.coli concentrations
@@ -88,7 +118,7 @@ annual_ecoli <- beach_annual |>
   filter(parameter == "E. Coli")
 
 # Create box plot
-beach_ecoli_annual_plot <- ggplot(annual_ecoli,
+beach_ecoli_mean_annual_plot <- ggplot(annual_ecoli,
   aes(x = factor(year), y = annual_mean_log, fill = parameter)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
   geom_jitter(
@@ -97,30 +127,27 @@ beach_ecoli_annual_plot <- ggplot(annual_ecoli,
     size = 1, alpha = 0.6) +
   scale_fill_manual(values = htb_colors) +
   scale_color_manual(values = htb_colors) +
-  labs(title = "Annual Average E. Coli Concentrations Across All Sites",
+  labs(title = "Annual Mean E. Coli Concentrations Across All Sites",
     x = "Year",
-    y = "Annual Mean Log10 Concentration") +
+    y = "Mean Log10 Concentration") +
   theme_bw(base_size = 14) +
   theme(
     strip.text = element_text(face = "bold", size = 12),
     plot.title = element_text(face = "bold", hjust = 0.5),
     legend.position = "none")
-beach_ecoli_annual_plot
+beach_ecoli_mean_annual_plot
 
 # Save the Plot 
 #ggsave(here("outputs", "beach_fib_average_annually", #"beach_ecoli_annual_plot.png"),
 #  plot = beach_ecoli_annual_plot, width = 15, height = 6, dpi = 400)
 ```
 
-### Annual Average Enterococcus Trends Across All Sites
+#### Median E. Coli Concentration Across All Sites Annually
 
 ```{r}
-annual_enterococcus <- beach_annual |>
-  filter(parameter == "Enterococcus")
-
 # Create box plot
-beach_entero_annual_plot <- ggplot(annual_enterococcus,
-  aes(x = factor(year), y = annual_mean_log, fill = parameter)) +
+beach_ecoli_med_annual_plot <- ggplot(annual_ecoli,
+  aes(x = factor(year), y = annual_median_log, fill = parameter)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
   geom_jitter(
     aes(color = parameter),
@@ -128,30 +155,105 @@ beach_entero_annual_plot <- ggplot(annual_enterococcus,
     size = 1, alpha = 0.6) +
   scale_fill_manual(values = htb_colors) +
   scale_color_manual(values = htb_colors) +
-  labs(title = "Annual Average Enterococcus Concentrations Across All Sites",
+  labs(title = "Annual Median E. Coli Concentrations Across All Sites",
     x = "Year",
-    y = "Annual Mean Log10 Concentration") +
+    y = "Median Log10 Concentration") +
   theme_bw(base_size = 14) +
   theme(
     strip.text = element_text(face = "bold", size = 12),
     plot.title = element_text(face = "bold", hjust = 0.5),
     legend.position = "none")
-beach_entero_annual_plot
+beach_ecoli_med_annual_plot
+
+```
+
+```{r}
+# Summary Statistics
+ecoli_summary_table <- annual_ecoli |>
+  group_by(year) |>
+  summarise(
+    n = n(),
+    min_ecoli = min(annual_median_log, na.rm = TRUE),
+    IQ25_ecoli = quantile(annual_median_log, 0.25, na.rm = TRUE),
+    mean_ecoli = mean(annual_median_log, na.rm = TRUE),
+    median_ecoli = median(annual_median_log, na.rm = TRUE),
+    IQ75_ecoli = quantile(annual_median_log, 0.75, na.rm = TRUE),
+    max_ecoli = max(annual_median_log, na.rm = TRUE),
+    var_ecoli = var(annual_median_log, na.rm = TRUE),
+    .groups = "drop")
+```
+
+#### Rainfall v E.Coli
+
+##### Median E.Coli v Precipitation
+
+Each point represents the annual median E.coli concentration at each monitoring station for a particular year (n = 264).
+
+```         
+```
+
+```         
+```
+
+### Enterococcus
+
+#### Mean Enterococcus Trends Across All Sites Annually
+
+```{r}
+annual_enterococcus <- beach_annual |>
+  filter(parameter == "Enterococcus")
+
+# SUmmarize the number of samples for each year
+yr_entero_samples <- annual_enterococcus |>
+  group_by(year) |>
+  summarise(
+    total_samples = sum(n_samples),
+    .groups = "drop")
+
+# Find the annual log 10 transforemd enterococcus value
+entro_threshold <- 104 # this is in MPN/100 mL
+log_entro_threshold <- log10(entro_threshold) 
+
+# Summarize the mean entrococcus value across all sizes
+mean_total_entro <- annual_enterococcus |> 
+  summarise(mean_yr_entero = mean(annual_mean_log), na.rm = TRUE) |>
+  pull(mean_yr_entero) # this extracts the numeric valye of the mean log10 entro event so that it can be plotted in ggplot
+
+
+# Create box plot
+beach_entero_mean_annual_plot <- ggplot(annual_enterococcus,
+  aes(x = factor(year), y = annual_mean_log, fill = parameter)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +
+  geom_jitter(
+    aes(color = parameter),
+    position = position_jitter(width = 0.15, height = 0),
+    size = 1, alpha = 0.6) +
+  geom_hline(yintercept = mean_total_entro, linetype = "dashed", linewidth = 1, color = "black")+
+  scale_fill_manual(values = htb_colors) +
+  scale_color_manual(values = htb_colors) +
+  labs(title = "Annual Mean Enterococcus Concentrations Across All Sites",
+    x = "Year",
+    y = "Mean Log10 Concentration") +
+  theme_bw(base_size = 14) +
+  theme(
+    strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none")
+beach_entero_mean_annual_plot
 
 # Save the Plot 
 #ggsave(here("outputs", "beach_fib_average_annually", #"beach_entero_annual_plot.png"),
 #  plot = beach_entero_annual_plot, width = 15, height = 6, dpi = 400)
 ```
 
-### Annual Average Total Coliforms Trends Across All Sites
+#### Median Enterococcus Concentration Across All Sites Annually
+
+The enterococcus exceedance threshold is 104 MPN/100 mL.
 
 ```{r}
-annual_total_coliforms <- beach_annual |>
-  filter(parameter == "Total Coliforms")
-
 # Create box plot
-beach_tot_annual_plot <- ggplot(annual_total_coliforms,
-  aes(x = factor(year), y = annual_mean_log, fill = parameter)) +
+beach_entero_med_annual_plot <- ggplot(annual_enterococcus,
+  aes(x = factor(year), y = annual_median_log, fill = parameter)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
   geom_jitter(
     aes(color = parameter),
@@ -159,29 +261,93 @@ beach_tot_annual_plot <- ggplot(annual_total_coliforms,
     size = 1, alpha = 0.6) +
   scale_fill_manual(values = htb_colors) +
   scale_color_manual(values = htb_colors) +
-  labs(title = "Annual Average Total Coliforms Concentrations Across All Sites",
+  labs(title = "Annual Median Enterococcus Concentrations Across All Sites",
     x = "Year",
-    y = "Annual Mean Log10 Concentration") +
+    y = "Annual Median Log10 Concentration") +
   theme_bw(base_size = 14) +
   theme(
     strip.text = element_text(face = "bold", size = 12),
     plot.title = element_text(face = "bold", hjust = 0.5),
     legend.position = "none")
-beach_tot_annual_plot
+beach_entero_med_annual_plot
+
+ggsave(here("outputs", "beach_fib_average_annually", "beach_entero_med_annual_plot.png"),
+  plot = beach_entero_med_annual_plot, width = 15, height = 6, dpi = 400)
+```
+
+### Total Coliforms
+
+#### Mean Total Coliforms Trends Across All Sites Annually
+
+```{r}
+annual_total_coliforms <- beach_annual |>
+  filter(parameter == "Total Coliforms")
+
+# Summarize the mean total coliform value across all sizes
+mean_total_coli <- annual_total_coliforms |> 
+  summarise(mean_yr_tot = mean(annual_mean_log), na.rm = TRUE) |>
+  pull(mean_yr_tot) # this extracts the numeric valye of the mean log10 entro event so that it can be plotted in ggplot
+
+# Create box plot
+beach_tot_mean_annual_plot <- ggplot(annual_total_coliforms,
+  aes(x = factor(year), y = annual_mean_log, fill = parameter)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +
+  geom_jitter(
+    aes(color = parameter),
+    position = position_jitter(width = 0.15, height = 0),
+    size = 1, alpha = 0.6) +
+  geom_hline(yintercept = mean_total_coli, linetype = "dashed", linewidth = 1, color = "black")+
+  scale_fill_manual(values = htb_colors) +
+  scale_color_manual(values = htb_colors) +
+  labs(title = "Annual Mean Total Coliforms Concentrations Across All Sites",
+    x = "Year",
+    y = "Mean Log10 Concentration") +
+  theme_bw(base_size = 14) +
+  theme(
+    strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none")
+beach_tot_mean_annual_plot
 
 # Save the Plot 
 #ggsave(here("outputs", "beach_fib_average_annually", #"beach_tot_annual_plot.png"),
 #  plot = beach_tot_annual_plot, width = 15, height = 6, dpi = 400)
 ```
 
-### Annual Average Fecal Coliforms Trends Across All Sites
+#### Median Total Coliforms Concentration Across All Sites Annually
+
+```{r}
+# Create box plot
+beach_tot_med_annual_plot <- ggplot(annual_total_coliforms,
+  aes(x = factor(year), y = annual_median_log, fill = parameter)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +
+  geom_jitter(
+    aes(color = parameter),
+    position = position_jitter(width = 0.15, height = 0),
+    size = 1, alpha = 0.6) +
+  scale_fill_manual(values = htb_colors) +
+  scale_color_manual(values = htb_colors) +
+  labs(title = "Annual Median Total Coliforms Concentrations Across All Sites",
+    x = "Year",
+    y = "Median Log10 Concentration") +
+  theme_bw(base_size = 14) +
+  theme(
+    strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none")
+beach_tot_med_annual_plot
+```
+
+### Fecal Coliforms
+
+#### Mean Fecal Coliforms Trends Across All Sites Annually
 
 ```{r}
 annual_fecal_coliforms <- beach_annual |>
   filter(parameter == "Fecal Coliforms")
 
 # Create box plot
-beach_fec_annual_plot <- ggplot(annual_fecal_coliforms,
+beach_fec_mean_annual_plot <- ggplot(annual_fecal_coliforms,
   aes(x = factor(year), y = annual_mean_log, fill = parameter)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
   geom_jitter(
@@ -192,17 +358,42 @@ beach_fec_annual_plot <- ggplot(annual_fecal_coliforms,
   scale_color_manual(values = htb_colors) +
   labs(title = "Annual Average Fecal Coliforms Concentrations Across All Sites",
     x = "Year",
-    y = "Annual Mean Log10 Concentration") +
+    y = "Mean Log10 Concentration") +
   theme_bw(base_size = 14) +
   theme(
     strip.text = element_text(face = "bold", size = 12),
     plot.title = element_text(face = "bold", hjust = 0.5),
     legend.position = "none")
-beach_fec_annual_plot
+beach_fec_mean_annual_plot
 
 # Save the Plot 
 #ggsave(here("outputs", "beach_fib_average_annually", #"beach_fec_annual_plot.png"),
 #  plot = beach_fec_annual_plot, width = 15, height = 6, dpi = 400)
+```
+
+#### Median Fecal Coliforms Concentration Across All Sites Annually
+
+```{r}
+# Create box plot
+beach_fec_med_annual_plot <- ggplot(annual_fecal_coliforms,
+  aes(x = factor(year), y = annual_median_log, fill = parameter)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +
+  geom_jitter(
+    aes(color = parameter),
+    position = position_jitter(width = 0.15, height = 0),
+    size = 1, alpha = 0.6) +
+  scale_fill_manual(values = htb_colors) +
+  scale_color_manual(values = htb_colors) +
+  labs(title = "Annual Median Fecal Coliforms Concentrations Across All Sites",
+    x = "Year",
+    y = "Median Log10 Concentration") +
+  theme_bw(base_size = 14) +
+  theme(
+    strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none")
+beach_fec_med_annual_plot
+
 ```
 
 # Beach FIB Average Monthly on a Year-to-Year Basis

@@ -30,11 +30,12 @@ beach_clean <- read.csv(here("data", "clean_master_beach_data_2014_2024.csv")) |
          sampledate = as.Date(sampledate)) # make sampledate into a date from a chr
 
 unique(beach_clean$beachname)
+unique(beach_clean$method)
 ```
 
 **Heal The Bay Brand Colors For GGplot**
 
-This code creates a color gradient for the graphs based on the Heal The Bay (HTB)'s brand colors. It creates 18 types of colors based on the 5 given brand colors.
+This code assigns the the following colors to each FIB parameter: E. Coli, Enterococcus, Total Coliforms, and Fecal Coliforms.
 
 ```{r}
 htb_colors <- c(
@@ -157,4 +158,8 @@ walk(names(station_list), function(station) {
 
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+# Enterococcus Filter Exceedances
+
+```{r}
+
+```
