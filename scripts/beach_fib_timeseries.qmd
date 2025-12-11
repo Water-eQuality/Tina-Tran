@@ -26,11 +26,16 @@ library(janitor)
 
 ```{r}
 beach_clean <- read.csv(here("data", "clean_master_beach_data_2014_2024.csv")) |>
-  mutate(log_result = log10(result),     # log 10 transformed the result column
-         sampledate = as.Date(sampledate)) # make sampledate into a date from a chr
+  mutate(log_result = log10(result), # log 10 transformed the result column
+         sampledate = as.Date(sampledate), # make sampledate into a date from a chr
+         year = year(sampledate)) # New column with only year
 
-unique(beach_clean$beachname)
-unique(beach_clean$method)
+
+# Quick data inspection
+unique(beach_clean$stationname) # checking the number of stations in data
+unique(beach_clean$beachname) # checking the number of beaches in data
+unique(beach_clean$method) # checking the number of methods in data
+unique(beach_clean$unit) # checking the number of units in data
 ```
 
 **Heal The Bay Brand Colors For GGplot**
@@ -47,119 +52,193 @@ htb_colors <- c(
 
 **10 Year Time Series Analysis - One PNG Per Station (4 Parameters)**
 
+This code creates a 10 year time series line graph for each log10 transformed result value. Each png is corresponds to a **monitoring location (n = 82)** and it will contain 4 panels if data is available. Each panel represents a different FIB parameters: E.Coli, Enterococcus, Total Coliform, and Fecal Coliforms.
+
 ```{r}
-# Split data by station ----
+# Split data by station 
 station_list <- split(beach_clean, beach_clean$stationname)
 
-# Loop through each station ----
+# Loop through each station 
 walk(names(station_list), function(station) {
   
   # Extract that station's data
   station_df <- station_list[[station]] |>
-    arrange(sampledate) # This code ensures that the sampledate column is in chronological order
+    arrange(sampledate) # Ensures that the sampledate column is in chronological order
   
   # Create the plot with 4 panels (one per parameter)
   station_plot <- ggplot(station_df, aes(x = sampledate, y = log_result, color = parameter)) +
     geom_line(aes(group = parameter), linewidth = 0.6, alpha = 0.8) +  # connect in date order
-      scale_color_manual(values = htb_colors) +              # apply your custom brand palette
+      scale_color_manual(values = htb_colors) + # apply brand colors
     geom_point(alpha = 0.6, size = 1.2) +
-    facet_wrap(~ parameter, scales = "free_y", nrow = 2) +  # 4 panels
+    facet_wrap(~ parameter, scales = "fixed", nrow = 2) +  # 4 panels
     scale_color_manual(values = htb_colors) +
     scale_x_date(
       date_breaks = "1 year",
-      date_labels = "%Y"
-    ) +
-    labs(
-      title = paste0("10-Year Time Series: ", station),
-      x = "Date",
-      y = expression(Log[10]*"(Concentration)"),
-      color = "Parameter"
-    ) +
+      date_labels = "%Y") +
+    labs(title = paste0("10-Year Time Series: ", station),
+      x = "Year",
+      y = expression(Log[10]*"(Concentration)")) +
     theme_bw(base_size = 12) +
     theme(
       plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
-      axis.text.x = element_text(angle = 0, hjust = 1),
+      axis.text.x = element_text(angle = 0, hjust = 0.5),
       legend.position = "none",
-      panel.spacing = unit(1, "lines")
-    )
+      panel.spacing = unit(1, "lines"))
   
   # Save the PNG ----
- ggsave(
-  filename = here("outputs", "beach_timeseries_all", paste0(gsub("[^A-Za-z0-9]", "_", station), "_timeseries.png")),
-  plot = station_plot,
-  width = 15,
-  height = 10,
-  dpi = 400)
-  
-  message("✅ Saved plot for: ", station)
-})
-
-```
-
-**10 Year Time Series Analysis - One PNG Per Station Per Parameter**
-
-```{r}
-# Split data by station ----
-station_list <- split(beach_clean, beach_clean$stationname)
-
-# Loop through each station ----
-walk(names(station_list), function(station) {
-  
-  # Extract that station’s data
-  station_df <- station_list[[station]]
-  
-  # Split further by parameter ----
-  parameter_list <- split(station_df, station_df$parameter)
-  
-  # Loop through each parameter for this station ----
-  walk(names(parameter_list), function(param) {
-    
-    # Extract the subset for this parameter
-    parameter_df <- parameter_list[[param]]
-    
-    # Create the plot ----
-    station_param_plot <- ggplot(parameter_df, aes(x = sampledate, y = log_result)) +
-      geom_point(color = htb_colors[param], alpha = 0.6, size = 1.2) +
-      geom_line(color = htb_colors[param], linewidth = 0.8, aes(group = 1)) +  # Connect by date
-      geom_smooth(method = "loess", se = FALSE, color = htb_colors[param], linewidth = 0.9) +
-      scale_x_date(
-        date_breaks = "1 year",
-        date_labels = "%Y"
-      ) +
-      labs(
-        title = paste0("10-Year Time Series: ", station, " (", param, ")"),
-        x = "Date",
-        y = expression(Log[10]*"(Concentration)")
-      ) +
-      theme_minimal(base_size = 12) +
-      theme(
-        plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
-        axis.text.x = element_text(angle = 45, hjust = 1)
-      )
-    
-    # Save PNG ----
-    ggsave(
-      filename = here(
-        "outputs", "beach_timeseries_separate",
-        paste0(
-          gsub("[^A-Za-z0-9]", "_", station), "_",
-          gsub("[^A-Za-z0-9]", "_", param), "_timeseries.png"
-        )
-      ),
-      plot = station_param_plot,
-      width = 12,
-      height = 10,
-      dpi = 400
-    )
-    
-    message("✅ Saved plot for: ", station, " - ", param)
+# ggsave(
+#  filename = here("outputs", "beach_timeseries_all", paste0(gsub("[^A-Za-z0-9]", "_", station), "_timeseries.png")),
+#  plot = station_plot, width = 15, height = 10,dpi = 400)
   })
-})
 
 ```
 
-# Enterococcus Filter Exceedances
+**10 Year Time Series Analysis - One PNG Per Beach Per Parameter**
+
+This code creates a 10 year time series line graph for each log10 transformed result value. Each png is corresponds to a **beach location (n = 34)** and it will contain 4 panels if data is available. Each panel represents a different FIB parameters: E.Coli, Enterococcus, Total Coliform, and Fecal Coliforms.
 
 ```{r}
+# Split data by beach 
+beach_list <- split(beach_clean, beach_clean$beachname)
 
+# Loop through each beach 
+walk(names(beach_list), function(beach) {
+  
+  # Extract that station's data
+  beach_df <- beach_list[[beach]] |>
+    arrange(sampledate) # Ensures that the sampledate column is in chronological order
+  
+  # Create the plot with 4 panels (one per parameter)
+  beach_plot <- ggplot(beach_df, aes(x = sampledate, y = log_result, color = parameter)) +
+    geom_line(aes(group = parameter), linewidth = 0.6, alpha = 0.8) +  # connect in date order
+      scale_color_manual(values = htb_colors) + # apply brand colors
+    geom_point(alpha = 0.6, size = 1.2) +
+    facet_wrap(~ parameter, scales = "fixed", nrow = 2) +  # 4 panels
+    scale_x_date(
+      date_breaks = "1 year",
+      date_labels = "%Y") +
+    labs(title = paste0("10-Year Time Series: ", beach),
+      x = "Year",
+      y = expression(Log[10]*"(Concentration)")) +
+    theme_bw(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+      axis.text.x = element_text(angle = 0, hjust = 0.5),
+      legend.position = "none",
+      panel.spacing = unit(1, "lines"))
+  
+  # Save the PNG 
+# ggsave(
+#  filename = here("outputs", "beach_timeseries_beachname", paste0(gsub("[^A-Za-z0-9]", "_", beach), "_timeseries.png")),
+#  plot = beach_plot, width = 15, height = 10,dpi = 400)
+  })
+```
+
+# Enterococcus Filtered Exceedances
+
+This code creates a new dataframe and plots the exceedances of enterococcus concentrations that are **greater than or equal to 104 MPN/100 mL**. The CPN/100 mL units are treated the same as the MPN/100 mL units.
+
+```{r}
+# Create a new data frame of enterococcus concentrations that are exceeding the threshold
+entero_only <- beach_clean |>
+  filter(parameter == "Enterococcus", #extract only enterococcus
+         result >= 104) # extract concentrations greater than or equal to 
+```
+
+# E. Coli Filtered Exceedances
+
+This code creates a new dataframe and plots the exceedances of E. coli concentrations that are **greater than or equal to 235 MPN/100 mL**. The CPN/100 mL units are treated the same as the MPN/100 mL units.
+
+```{r}
+# Create a new data frame of e. coli concentrations that are exceeding the threshold
+ecoli_only <- beach_clean |>
+  filter(parameter == "E. Coli", #extract only e. coli
+         result >= 235) # extract concentrations greater than or equal to 
+```
+
+# Total Coliforms Filtered Exceedances
+
+This code creates a new dataframe and plots the exceedances of total coliforms concentrations that are **greater than or equal to 10,000 MPN/100 mL**. The CPN/100 mL units are treated the same as the MPN/100 mL units.
+
+```{r}
+# Create a new data frame of total coliforms concentrations that are exceeding the threshold
+total_coli_only <- beach_clean |>
+  filter(parameter == "Total Coliforms", #extract only total coliforms
+         result >= 10000) # extract concentrations greater than or equal to 
+```
+
+# Fecal Coliforms Filtered Exceedances
+
+This code creates a new dataframe and plots the exceedances of fecal coliforms concentrations that are **greater than or equal to 400 MPN/100 mL**. The CPN/100 mL units are treated the same as the MPN/100 mL units.
+
+```{r}
+# Create a new data frame of fecal coliforms concentrations that are exceeding the threshold
+fecal_coli_only <- beach_clean |>
+  filter(parameter == "Fecal Coliforms", #extract only fecal coliforms
+         result >= 400) # extract concentrations greater than or equal to 
+```
+
+# Master Dataset for Exceedance Values
+
+```{r}
+# Combine the 4 datasets of the exceedance values of each FIB parameter into one main dataset. 
+exceed_all <- bind_rows(entero_only, ecoli_only, 
+                        total_coli_only, fecal_coli_only)
+
+# Create the exceedance statistics for the date for all 10 years
+exceed_stats <- exceed_all |>
+  mutate(year = lubridate::year(sampledate)) |>
+  group_by(parameter) |>
+  summarise(
+    total_exceed = n(),
+    mean_exceed = mean(result, na.rm = TRUE),
+    median_exceed = median(result, na.rm = TRUE),
+    variance_exceed = var(result, na.rm = TRUE),
+    min_exceed = min(result, na.rm = TRUE),
+    max_exceed = max(result, na.rm = TRUE))
+exceed_stats # print the table
+    
+# Create the exceedance statistics for the date for all 10 years
+exceed_stats_yr <- exceed_all |>
+  mutate(year = lubridate::year(sampledate)) |>
+  group_by(parameter, year) |>
+  summarise(
+    total_exceed = n(),
+    mean_exceed = mean(result, na.rm = TRUE),
+    median_exceed = median(result, na.rm = TRUE),
+    variance_exceed = var(result, na.rm = TRUE),
+    min_exceed = min(result, na.rm = TRUE),
+    max_exceed = max(result, na.rm = TRUE),
+    .groups = "drop")
+exceed_stats_yr 
+
+```
+
+```{r}
+# Create bar graphs to understand the total amount of exceedances for each year
+
+# E. Coli bar 
+ecoli_exceed_bar <- ggplot(exceed_stats_yr, 
+                           aes(x = year, y = total_exceed),
+                           color = parmater) +
+  geom_col() +
+  scale_color_manual(values = htb_colors) +
+  scale_x_date(date_breaks = "1 year",
+      date_labels = "%Y") +  
+  theme_bw(plot.title = element_text(face = "bold", 
+                                     size = 14, hjust = 0.5), 
+           axis.text.x = element_text(angle = 0, hjust = 0.5), 
+           legend.position = "none")
+ecoli_exceed_bar
+
+
+##### To Be continued
+    
+    labs(title = paste0("10-Year Time Series: ", station),
+      x = "Year",
+      y = expression(Log[10]*"(Concentration)")) +
+    theme_bw(base_size = 12) +
+    
+      panel.spacing = unit(1, "lines")
+  
 ```

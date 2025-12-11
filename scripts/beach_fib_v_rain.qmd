@@ -172,8 +172,8 @@ precip_monthly_plot <- ggplot(precip_monthly,
 precip_monthly_plot
 
 # Save the bar graph
-ggsave(here("outputs", "precip_only", "monthly_precip.png"), 
-      plot = precip_monthly_plot, width = 14, height = 8, dpi = 500)
+#ggsave(here("outputs", "precip_only", "monthly_precip.png"), 
+     # plot = precip_monthly_plot, width = 14, height = 8, dpi = 500)
 ```
 
 # E. coli v Rain
