@@ -31,6 +31,7 @@ library(lubridate)
 library(slider)
 library(scales)
 library(janitor)
+library(patchwork)
 ```
 
 ## **Heal The Bay Brand Colors**
@@ -62,8 +63,29 @@ beach_clean <- beach_data_2014_2024 |>
           year = year(sampledate),  # extract year from sampledate
           month = month(sampledate, label = TRUE, abbr = TRUE)) # extract month from sampledate
 
-# Creating a summary of the annual mean log results of each fib parameter for each station
-beach_annual <- beach_clean |>
+```
+
+Results for greatest variance values and range:
+
+-   The top 2 greatest variance values for **E.** **Coli** was in [2023]{.underline} (log10 var = 0.97) and [2024]{.underline} (log10 var = 0.88)
+
+    -   Range: 0.15-0.97 for 10 years
+
+-   The top 2 greatest variance values for **Enterococcus** was in [2023]{.underline} (log10 var = 0.58) and [2019]{.underline} (log10 var = 0.49)
+
+    -   Range: 0.21-0.58
+
+-   The top 2 greatest variance values for **Fecal Coliforms** was in [2019]{.underline} (log10 var = 0.55) and [2017]{.underline} (log10 var = 0.53)
+
+    -   Range: 0.21-0.55
+
+-   The top 2 greatest variance values for **Total Coliforms** was in [2023]{.underline} (log10 var = 1.12) and [2024]{.underline} (log10 var = 1.06)
+
+    -   Range: 0.59-1.12
+
+```{r}
+# Creating a summary stats for each fib parameter for each station # for each year
+beach_annual_station <- beach_clean |>
   group_by(stationname, parameter, year) |>
   summarise(
     annual_mean_log = mean(result_log, na.rm = TRUE),
@@ -71,7 +93,20 @@ beach_annual <- beach_clean |>
     annual_variance_log = var(result_log, na.rm = TRUE),
     n_samples = n(),
     .groups = "drop")
+
+
+# Creating a summary stats for each fib parameter for each year
+beach_annual_parameter <- beach_clean |>
+  group_by(parameter, year) |>
+  summarise(
+    annual_mean_log = mean(result_log, na.rm = TRUE),
+    annual_median_log = median(result_log, na.rm = TRUE),
+    annual_variance_log = var(result_log, na.rm = TRUE),
+    n_samples = n(),
+    .groups = "drop")
 ```
+
+The precipitation data is cleaned, mutated, and filtered to create 2 datasets: wet weather and dry weather.
 
 ```{r}
 # Read in the Precipitation Data
@@ -100,10 +135,8 @@ precip_annual <- precip_clean |>
     .groups = "drop")
 
 # Join the Precipi Data with the FIB Concentrations Annual Data
-join_prcp_fib_data <- beach_annual |>
+join_prcp_fib_data <- beach_annual_station |>
   left_join(precip_annual, by = "year")
-
-
 ```
 
 ## Mean Annual Average FIB Concentrations
@@ -112,11 +145,24 @@ join_prcp_fib_data <- beach_annual |>
 
 #### Mean E.Coli Trends Across All Sites Annually
 
+This code develops a box plot for all the FIB data points per year per station.
+
+Goal: Understand annual distribution of E.Coli across all monitoring stations.
+
 ```{r}
 # Create a new dataframe for only yearly e.coli concentrations
-annual_ecoli <- beach_annual |>
+annual_ecoli <- beach_annual_station |>
   filter(parameter == "E. Coli")
 
+
+# Summarize the mean e.coli value across all sizes
+mean_total_ecoli <- annual_ecoli |> 
+  summarise(mean_yr_ecoli = mean(annual_mean_log), na.rm = TRUE) |>
+  pull(mean_yr_ecoli) # this extracts the numeric valye of the mean log10 entro event so that it can be plotted in ggplot
+
+```
+
+```{r}
 # Create box plot
 beach_ecoli_mean_annual_plot <- ggplot(annual_ecoli,
   aes(x = factor(year), y = annual_mean_log, fill = parameter)) +
@@ -125,11 +171,13 @@ beach_ecoli_mean_annual_plot <- ggplot(annual_ecoli,
     aes(color = parameter),
     position = position_jitter(width = 0.15, height = 0),
     size = 1, alpha = 0.6) +
+    geom_hline(yintercept = mean_total_ecoli, linetype = "dashed", linewidth = 1, color = "black")+
   scale_fill_manual(values = htb_colors) +
   scale_color_manual(values = htb_colors) +
-  labs(title = "Annual Mean E. Coli Concentrations Across All Sites",
+  labs(title = "E. Coli",
     x = "Year",
     y = "Mean Log10 Concentration") +
+  ylim(0.5, 3.5) +
   theme_bw(base_size = 14) +
   theme(
     strip.text = element_text(face = "bold", size = 12),
@@ -183,24 +231,12 @@ ecoli_summary_table <- annual_ecoli |>
     .groups = "drop")
 ```
 
-#### Rainfall v E.Coli
-
-##### Median E.Coli v Precipitation
-
-Each point represents the annual median E.coli concentration at each monitoring station for a particular year (n = 264).
-
-```         
-```
-
-```         
-```
-
 ### Enterococcus
 
 #### Mean Enterococcus Trends Across All Sites Annually
 
 ```{r}
-annual_enterococcus <- beach_annual |>
+annual_enterococcus <- beach_annual_station |>
   filter(parameter == "Enterococcus")
 
 # SUmmarize the number of samples for each year
@@ -218,8 +254,9 @@ log_entro_threshold <- log10(entro_threshold)
 mean_total_entro <- annual_enterococcus |> 
   summarise(mean_yr_entero = mean(annual_mean_log), na.rm = TRUE) |>
   pull(mean_yr_entero) # this extracts the numeric valye of the mean log10 entro event so that it can be plotted in ggplot
+```
 
-
+```{r}
 # Create box plot
 beach_entero_mean_annual_plot <- ggplot(annual_enterococcus,
   aes(x = factor(year), y = annual_mean_log, fill = parameter)) +
@@ -231,9 +268,10 @@ beach_entero_mean_annual_plot <- ggplot(annual_enterococcus,
   geom_hline(yintercept = mean_total_entro, linetype = "dashed", linewidth = 1, color = "black")+
   scale_fill_manual(values = htb_colors) +
   scale_color_manual(values = htb_colors) +
-  labs(title = "Annual Mean Enterococcus Concentrations Across All Sites",
+  labs(title = "Enterococcus",
     x = "Year",
     y = "Mean Log10 Concentration") +
+  ylim(0.5, 3.5)+
   theme_bw(base_size = 14) +
   theme(
     strip.text = element_text(face = "bold", size = 12),
@@ -271,8 +309,8 @@ beach_entero_med_annual_plot <- ggplot(annual_enterococcus,
     legend.position = "none")
 beach_entero_med_annual_plot
 
-ggsave(here("outputs", "beach_fib_average_annually", "beach_entero_med_annual_plot.png"),
-  plot = beach_entero_med_annual_plot, width = 15, height = 6, dpi = 400)
+#ggsave(here("outputs", "beach_fib_average_annually", #"beach_entero_med_annual_plot.png"),
+  #plot = beach_entero_med_annual_plot, width = 15, height = 6, #dpi = 400)
 ```
 
 ### Total Coliforms
@@ -280,7 +318,7 @@ ggsave(here("outputs", "beach_fib_average_annually", "beach_entero_med_annual_pl
 #### Mean Total Coliforms Trends Across All Sites Annually
 
 ```{r}
-annual_total_coliforms <- beach_annual |>
+annual_total_coliforms <- beach_annual_station |>
   filter(parameter == "Total Coliforms")
 
 # Summarize the mean total coliform value across all sizes
@@ -299,9 +337,10 @@ beach_tot_mean_annual_plot <- ggplot(annual_total_coliforms,
   geom_hline(yintercept = mean_total_coli, linetype = "dashed", linewidth = 1, color = "black")+
   scale_fill_manual(values = htb_colors) +
   scale_color_manual(values = htb_colors) +
-  labs(title = "Annual Mean Total Coliforms Concentrations Across All Sites",
+  labs(title = "Total Coliforms",
     x = "Year",
     y = "Mean Log10 Concentration") +
+  ylim(0.5, 3.5) +
   theme_bw(base_size = 14) +
   theme(
     strip.text = element_text(face = "bold", size = 12),
@@ -343,8 +382,13 @@ beach_tot_med_annual_plot
 #### Mean Fecal Coliforms Trends Across All Sites Annually
 
 ```{r}
-annual_fecal_coliforms <- beach_annual |>
+annual_fecal_coliforms <- beach_annual_station |>
   filter(parameter == "Fecal Coliforms")
+
+# Summarize the mean total coliform value across all sizes
+mean_fecal_coli <- annual_fecal_coliforms |> 
+  summarise(mean_yr_fecal = mean(annual_mean_log), na.rm = TRUE) |>
+  pull(mean_yr_fecal) # this extracts the numeric valye of the mean log10 entro event so that it can be plotted in ggplot
 
 # Create box plot
 beach_fec_mean_annual_plot <- ggplot(annual_fecal_coliforms,
@@ -354,11 +398,13 @@ beach_fec_mean_annual_plot <- ggplot(annual_fecal_coliforms,
     aes(color = parameter),
     position = position_jitter(width = 0.15, height = 0),
     size = 1, alpha = 0.6) +
+  geom_hline(yintercept = mean_fecal_coli, linetype = "dashed", linewidth = 1, color = "black")+
   scale_fill_manual(values = htb_colors) +
   scale_color_manual(values = htb_colors) +
-  labs(title = "Annual Average Fecal Coliforms Concentrations Across All Sites",
+  labs(title = "Fecal Coliforms",
     x = "Year",
     y = "Mean Log10 Concentration") +
+  ylim(0.5, 3.5) +
   theme_bw(base_size = 14) +
   theme(
     strip.text = element_text(face = "bold", size = 12),
@@ -396,9 +442,23 @@ beach_fec_med_annual_plot
 
 ```
 
+# Pathworking Section
+
+The four mean annual boxplots for the four FIB parameters: E. coli, enterococcus, total coliforms, and fecal coliforms were combined into one png for export for the report.
+
+```{r}
+combined_mean_annual_boxplots <- 
+  (beach_ecoli_mean_annual_plot | beach_entero_mean_annual_plot) /
+  (beach_tot_mean_annual_plot | beach_fec_mean_annual_plot)
+combined_mean_annual_boxplots
+
+# Save the plot
+ggsave(here("outputs", "beach_fib_average_annually", "beach_annual_all.png"), plot = combined_mean_annual_boxplots, width = 12, height = 10, dpi = 400)
+```
+
 # Beach FIB Average Monthly on a Year-to-Year Basis
 
-Average all the beaches each month for each year. Then analyze on a year to year basis and have it be 1 year at a time.
+[**Goal**]{.underline}: The purpose of this section is the understand how the average of FIB concentrations vary througout each month on a year to year basis. This can help us understand patterns between wet and dry months, and th effects on the monitoring stations.
 
 ## **2014 Yearly Box Plot**
 

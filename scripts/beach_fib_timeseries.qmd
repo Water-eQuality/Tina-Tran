@@ -139,10 +139,40 @@ walk(names(beach_list), function(beach) {
 This code creates a new dataframe and plots the exceedances of enterococcus concentrations that are **greater than or equal to 104 MPN/100 mL**. The CPN/100 mL units are treated the same as the MPN/100 mL units.
 
 ```{r}
-# Create a new data frame of enterococcus concentrations that are exceeding the threshold
+# Create a new data frame with enterococcus only exceedance values
 entero_only <- beach_clean |>
-  filter(parameter == "Enterococcus", #extract only enterococcus
-         result >= 104) # extract concentrations greater than or equal to 
+  filter(parameter == "Enterococcus",
+         result >= 104)   
+
+# Loop through each beach
+walk(names(beach_list), function(beach) {
+  
+  # Create the Enterococcus time-series plot
+  entero_exceedance_plot <- ggplot(entero_only,
+                       aes(x = sampledate, y = log_result)) +
+    
+    geom_line(color = htb_colors[1], linewidth = 0.6, alpha = 0.8) +
+    geom_point(color = htb_colors[1], alpha = 0.7, size = 1.3) +
+    scale_x_date(
+      date_breaks = "1 year",
+      date_labels = "%Y") +
+    
+    labs(title = paste0("10-Year Enterococcus Exceedance: ", beach),
+      x = "Year",
+      y = expression(Log[10] * "(Concentration)")) +
+    
+    theme_bw(base_size = 12) +
+    theme(plot.title = element_text(face = "bold", 
+                                    size = 14, hjust = 0.5),
+      axis.text.x = element_text(angle = 0, hjust = 0.5),
+      legend.position = "none")
+  
+#Save the PNG if needed
+#ggsave(filename = here("outputs", "beach_timeseries_exceedances",
+ #                      "entero_exceed",
+     #             paste0(gsub("[^A-Za-z0-9]", "_", beach), #"_Entero_exceed_timeseries.png")),
+   #    plot = entero_exceedance_plot, width = 15, height = 10, dpi = 400)
+#})
 ```
 
 # E. Coli Filtered Exceedances
@@ -154,6 +184,36 @@ This code creates a new dataframe and plots the exceedances of E. coli concentra
 ecoli_only <- beach_clean |>
   filter(parameter == "E. Coli", #extract only e. coli
          result >= 235) # extract concentrations greater than or equal to 
+
+# Loop through each beach
+walk(names(beach_list), function(beach) {
+  
+  # Create the Enterococcus time-series plot
+  ecoli_exceedance_plot <- ggplot(ecoli_only,
+                       aes(x = sampledate, y = log_result)) +
+    
+    geom_line(color = htb_colors[1], linewidth = 0.6, alpha = 0.8) +
+    geom_point(color = htb_colors[1], alpha = 0.7, size = 1.3) +
+    scale_x_date(
+      date_breaks = "1 year",
+      date_labels = "%Y") +
+    
+    labs(title = paste0("10-Year E. Coli Exceedance: ", beach),
+      x = "Year",
+      y = expression(Log[10] * "(Concentration)")) +
+    
+    theme_bw(base_size = 12) +
+    theme(plot.title = element_text(face = "bold", 
+                                    size = 14, hjust = 0.5),
+      axis.text.x = element_text(angle = 0, hjust = 0.5),
+      legend.position = "none")
+  
+#Save the PNG if needed
+#ggsave(filename = here("outputs", "beach_timeseries_exceedances",
+#                       "ecoli_exceed",
+ #                 paste0(gsub("[^A-Za-z0-9]", "_", beach), #"_ecoli_exceed_timeseries.png")),
+#       plot = ecoli_exceedance_plot, width = 15, height = 10, dpi = 400)
+#})
 ```
 
 # Total Coliforms Filtered Exceedances
@@ -217,28 +277,53 @@ exceed_stats_yr
 ```{r}
 # Create bar graphs to understand the total amount of exceedances for each year
 
-# E. Coli bar 
-ecoli_exceed_bar <- ggplot(exceed_stats_yr, 
-                           aes(x = year, y = total_exceed),
-                           color = parmater) +
-  geom_col() +
-  scale_color_manual(values = htb_colors) +
-  scale_x_date(date_breaks = "1 year",
-      date_labels = "%Y") +  
-  theme_bw(plot.title = element_text(face = "bold", 
-                                     size = 14, hjust = 0.5), 
-           axis.text.x = element_text(angle = 0, hjust = 0.5), 
-           legend.position = "none")
-ecoli_exceed_bar
+# Create the boxplot
+exceedance_box <- ggplot(exceed_stats_yr, aes(x = factor(year), y = total_exceed)) +
+  geom_boxplot(alpha = 0.6, size = 1.0, fill = htb_colors[1]) +
+  geom_point(alpha = 0.6, size = 1.5, color = htb_colors[2]) +
+  labs(
+    title = "Distribution of Exceedances by Year",
+    x = "Year",
+    y = "Exceedance Count"
+  ) +
+  theme_bw(12) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(face = "bold", hjust = 0.5)
+  )
+
+ggsave(
+  filename = here("outputs", "beach_timeseries_exceedances", "annual_exceed_boxplot.png"),
+  plot = exceedance_box,
+  width = 10,
+  height = 6,
+  dpi = 400
+)
+```
+
+-   **Research Question: What beach had the highest total number of exceedances across all 10 years.**
+
+```{r}
+beach_exceed_stats_total <- exceed_all |>
+  mutate(year = lubridate::year(sampledate)) |>
+  group_by(parameter, beachname) |>
+  summarise(
+    total_exceed = n(),
+    mean_exceed = mean(result, na.rm = TRUE),
+    median_exceed = median(result, na.rm = TRUE),
+    variance_exceed = var(result, na.rm = TRUE),
+    min_exceed = min(result, na.rm = TRUE),
+    max_exceed = max(result, na.rm = TRUE),
+    .groups = "drop")
+beach_exceed_stats_total 
 
 
-##### To Be continued
-    
-    labs(title = paste0("10-Year Time Series: ", station),
-      x = "Year",
-      y = expression(Log[10]*"(Concentration)")) +
-    theme_bw(base_size = 12) +
-    
-      panel.spacing = unit(1, "lines")
-  
+
+exceed_ranked_tables <- beach_exceed_stats_total |>
+  group_by(parameter) |>
+  arrange(parameter, desc(total_exceed)) |>
+  mutate(rank = row_number()) |>
+  select(parameter, rank, beachname, total_exceed) |>
+  ungroup()
+exceed_ranked_tables
 ```

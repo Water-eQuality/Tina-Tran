@@ -146,7 +146,7 @@ overall_mean_rain
 
 ```
 
-## Monthly Average Rainfall 
+## Monthly Average Rainfall
 
 This code will total the amount of rainfall for each month for each year.
 
@@ -227,11 +227,7 @@ ecoli_prcp_var_point
 
 Box plot vision create a min, IQ25, median, IQ75, max of the annual median values of each, group by year
 
-```{r}
-
-```
-
-## Enterococcus v Rain
+## Enterococcus v Rain Hydrograph
 
 ```{r}
 # Filter out Enterococcus
@@ -253,7 +249,7 @@ entero_prcp_med_point <- ggplot(join_enterococcus,
 entero_prcp_med_point
 ```
 
-## Total Coliforms v Rain
+## Total Coliforms v Rain Hydrograph
 
 ```{r}
 # Filter out Total Coliforms
@@ -275,7 +271,7 @@ tot_prcp_med_point <- ggplot(join_total_coliforms,
 tot_prcp_med_point
 ```
 
-## Fecal Coliforms v Rain
+## Fecal Coliforms v Rain Hydrograph
 
 ```{r}
 # Filter out Enterococcus
