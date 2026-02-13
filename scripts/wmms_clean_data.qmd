@@ -1,0 +1,156 @@
+---
+title: "wmms_clean_data"
+format: 
+ html:
+    embed-resources: true
+    code-line-numbers: true
+    code-wrap: true
+    code-fold: true
+    toc: true
+author: Tina Tran 
+editor: visual
+---
+
+## WMMS Clean Data
+
+**Load Libraries**
+
+```{r, warning = FALSE, message = FALSE}
+# Load library 
+library(tidyverse)
+library(here)
+library(janitor)
+library(ggplot2)
+library(dplyr)
+library(stringr)
+```
+
+# San Gabriel
+
+## Jurished: 5120 (New River Park)
+
+[**Parameters for Jurished Data:**]{.underline}\
+TT This output file was created at 06:16:55pm on 02/10/2026\
+TT Time interval: 60 min Output option: day\
+TT Label\
+**TT PREC precipitation (rain + snow) volume (in-acre/day)\
+TT SURO surface outflow volume (in-acre/day)**\
+TT IFWO interflow outflow volume (in-acre/day)\
+TT AGWO groundwater outflow volume (in-acre/day)\
+TT PERO total outflow rate volume (SURO+IFWO+AGWO) (in-acre/day)\
+TT DEP stream depth (ft)\
+TT AVDEP stream average depth (ft)\
+TT TAU bed shear stress (kg/m\^2)\
+TT RO total rate of outflow from RCHRES (cfs)\
+**TT SOSED sediments load from land (english tons/day)**\
+TT SSEDOUT1 suspended sediment concentration in outflow from the RCHRES (mg/l)\
+TT SSEDOUT2 suspended sediment concentration in outflow from the RCHRES (mg/l)\
+TT SSEDOUT3 suspended sediment concentration in outflow from the RCHRES (mg/l)\
+TT SSEDOUT total suspended solid concentration in outflow from the RCHRES (mg/l)\
+TT POQUAL1 total flux of QUAL from the PLS_TN (lb/day)\
+TT POQUAL2 total flux of QUAL from the PLS_TP (lb/day)\
+TT POQUAL3 total flux of QUAL from the PLS_TCd (lb/day)\
+TT POQUAL4 total flux of QUAL from the PLS_TCu (lb/day)\
+TT POQUAL5 total flux of QUAL from the PLS_TPb (lb/day)\
+TT POQUAL6 total flux of QUAL from the PLS_TZn (lb/day)\
+**TT CONC1 TN dissolved concentration (average) in RCHRES (mg/l)\
+TT CONC2 TP dissolved concentration (average) in RCHRES (mg/l)**\
+TT CONC3 TCd dissolved concentration (average) in RCHRES (ug/l)\
+TT CONC4 TCu dissolved concentration (average) in RCHRES (ug/l)\
+TT CONC5 TPb dissolved concentration (average) in RCHRES (ug/l)\
+TT CONC6 TZn dissolved concentration (average) in RCHRES (ug/l)
+
+### Loading
+
+[**Goal:**]{.underline} Estimate the total average annual loading for sediment, nitrogen, runoff volume (total surface outflow rate \* areas)
+
+```{r}
+
+
+```
+
+### **Landuse Based on Area for 5120**
+
+The delineations used for this model include 96 types to calculate the average area based on landuse from 2008-2018 using input data from 2006-2018. We will group the delineations based on major land use types: road, developed, agriculture, vegetation, and water before plotting the data and analysis.
+
+[**Goal**]{.underline}: Understand how much total average area in acres is distributed in this jurished based on landuse type.
+
+```{r, warning = FALSE, message = FALSE}
+# San Gabriel Landuse Data 
+sg_lu_5120_raw <- read.csv(here("data", "wmms", "sg_5120", "landuse_sg_5120.csv"))
+
+# San Gabriel Delineation Data for Landuse
+sg_deluid_5120 <- read.csv(here("data", "wmms","sg_5120", "landuse_deluid_5120.csv"))
+
+
+#Check the data
+unique(sg_lu_5120_raw$deluid) #total of 96
+
+# Pivot the long table
+sg_lu_5120_clean <- sg_lu_5120_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1) 
+head(sg_lu_5120_clean)
+
+
+# Check shared names prior to joining 
+names(sg_lu_5120_clean)
+names(sg_deluid_5120)
+intersect(names(sg_lu_5120_clean), names(sg_deluid_5120))
+
+
+# Join Tables 
+sg_lu_5120_join <- sg_lu_5120_clean |>
+  left_join(sg_deluid_5120, by = c("subbasin", "deluid"))
+
+
+# Check number of rows 
+nrow(sg_lu_5120_clean)
+nrow(sg_lu_5120_join)
+
+sum(is.na(sg_lu_5120_join[[names(sg_deluid_5120)[3]]]))
+```
+
+```{r}
+# Categorize the delineations into main classes for easier data manipulation
+sg_plot_5120 <- sg_lu_5120_join |>
+  mutate(main_class = str_extract(deluname, "^[^_-]+"))
+ # summarise(total_volume = area_ac*
+```
+
+```{r}
+# Summarize the data
+lu_area_5120_sum <- sg_plot_5120 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(AREA, na.rm = TRUE),
+            total_avg_sed = sum(SEDLOAD, na.rm = TRUE),
+            total_avg_n = sum(PO_TN, na.rm = TRUE))
+
+# Landuse Type Distribution Plot 
+lu_5120_plot <- ggplot(lu_area_5120_sum, aes(x = main_class, y = total_area)) +
+  geom_col() +
+  labs(x = "Land Use Type", y = "Total Average Area (acres)", 
+       title = "Jurished 5120 Landuse Distribution") +
+  theme_minimal()
+
+print(lu_5120_plot)
+
+# Sediment Loading Plot
+lu_5120_sed <- ggplot(lu_area_5120_sum, aes(x = main_class, y = total_avg_sed)) +
+  geom_col() +
+  labs(x = "Land Use Type", y = "Total Average Sediment (tons/year)", 
+       title = "Jurished 5120 Average Sediment Loading 2008-2018") +
+  theme_minimal()
+print(lu_5120_sed)
+
+
+# Nitrogen FLux Plot
+lu_5120_n <- ggplot(lu_area_5120_sum, aes(x = main_class, y = total_avg_n)) +
+  geom_col() +
+  labs(x = "Land Use Type", y = "Total Average Nitrogen Flux (lbs/year)", 
+       title = "Jurished 5120 Average Nitrogen Flux 2008-2018") +
+  theme_minimal()
+print(lu_5120_n)
+
+```
