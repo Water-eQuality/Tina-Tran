@@ -1,12 +1,18 @@
 ---
 title: "beach_fib_time_series"
-format: html
+format: 
+  html:
+    embed-resources: true
+    code-line-numbers: true
+    code-wrap: true
+    code-fold: true
+    toc: true
 editor: visual
 ---
 
-## Beach FIB Timeseries Analysis
+# Beach FIB Timeseries Analysis
 
-This code is creating a 10 year timeseries analysis for each beach to understand the trends between the wet and dry periods across 2014-2024.
+This code is creating a 10 year timeseries analysis for each beach to understand the trends between the wet and dry periods across 2014-2024. The timeseries data are not connected with a line because the data is not continuous.
 
 ```{r, message = false, warning = false}
 # Load libraries 
@@ -27,13 +33,16 @@ library(janitor)
 ```{r}
 beach_clean <- read.csv(here("data", "clean_master_beach_data_2014_2024.csv")) |>
   mutate(log_result = log10(result), # log 10 transformed the result column
-         sampledate = as.Date(sampledate), # make sampledate into a date from a chr
-         year = year(sampledate)) # New column with only year
+         sample_date = as.Date(sample_date), # make sampledate into a date from a chr
+         year = year(sample_date), # New column with only year
+         day = day(sample_date),
+         month = month(sample_date, label = TRUE, 
+                       abbr = TRUE))  # New column with month
 
 
 # Quick data inspection
-unique(beach_clean$stationname) # checking the number of stations in data
-unique(beach_clean$beachname) # checking the number of beaches in data
+unique(beach_clean$station_name) # checking the number of stations in data
+unique(beach_clean$beach_name) # checking the number of beaches in data
 unique(beach_clean$method) # checking the number of methods in data
 unique(beach_clean$unit) # checking the number of units in data
 ```
@@ -50,28 +59,69 @@ htb_colors <- c(
   "Fecal Coliforms" = "#1479A9")
 ```
 
-**10 Year Time Series Analysis - One PNG Per Station (4 Parameters)**
+[**Exceedance Values**]{.underline}
 
-This code creates a 10 year time series line graph for each log10 transformed result value. Each png is corresponds to a **monitoring location (n = 82)** and it will contain 4 panels if data is available. Each panel represents a different FIB parameters: E.Coli, Enterococcus, Total Coliform, and Fecal Coliforms.
+-   Total Coliforms - 10,000 MPN/100 mL
+
+-   Fecal Coliforms - 400 MPN/100 mL
+
+-   Enterococcus - 104 MPN/100 mL
+
+-   E. Coli - 235 MPN/100 mL
+
+This code log10 transforms the exceedance threshold values for each FIB parameter, and then combines them into a data frame. This data frame will be used to create horizontal red lines in the following facet wrap graphs for each monitoring station and beach location.
 
 ```{r}
+# Calculate Log 10 total coliform threshold
+log_tc <- log10(10000)
+
+#Calcualte log 10 of fecal coliform threshold
+log_fc <- log10(400)
+
+# Calculate log10 of enterococcus threshold
+log_entero <- log10(104)
+
+# Calculate log10 of e.coli threshold
+log_ecoli <- log10(235)
+
+# Create a dataframe with the log10 thresholds 
+log_thresholds <- tibble::tibble(
+  parameter = c("Total Coliforms",
+                "Fecal Coliforms",
+                "Enterococcus",
+                "E. Coli"),
+  threshold = c(log_tc, log_fc, log_entero, log_ecoli))
+```
+
+## **10 Year Time Series Analysis - One PNG Per Station (4 Parameters)**
+
+This code creates a 10 year time series line graph for each log10 transformed result value. Each png is corresponds to a **monitoring location (n = 99)** and it will contain 4 panels if data is available. Each panel represents a different FIB parameters: E. Coli, Enterococcus, Total Coliforms, and Fecal Coliforms.
+
+```{r, warning = FALSE, message = FALSE}
 # Split data by station 
-station_list <- split(beach_clean, beach_clean$stationname)
+station_list <- split(beach_clean, beach_clean$station_name)
 
 # Loop through each station 
 walk(names(station_list), function(station) {
   
   # Extract that station's data
   station_df <- station_list[[station]] |>
-    arrange(sampledate) # Ensures that the sampledate column is in chronological order
+    arrange(sample_date) # Ensures that the sampledate column is in chronological order
   
   # Create the plot with 4 panels (one per parameter)
-  station_plot <- ggplot(station_df, aes(x = sampledate, y = log_result, color = parameter)) +
-    geom_line(aes(group = parameter), linewidth = 0.6, alpha = 0.8) +  # connect in date order
-      scale_color_manual(values = htb_colors) + # apply brand colors
+  station_plot <- ggplot(station_df, 
+                         aes(x = sample_date, 
+                             y = log_result, 
+                             color = parameter)) +
     geom_point(alpha = 0.6, size = 1.2) +
+    geom_hline(data = log_thresholds,
+             aes(yintercept = threshold),
+             inherit.aes = FALSE,
+             linetype = "dashed",
+             color = "red",
+             linewidth = 0.7) +
+    scale_color_manual(values = htb_colors) + # apply brand colors
     facet_wrap(~ parameter, scales = "fixed", nrow = 2) +  # 4 panels
-    scale_color_manual(values = htb_colors) +
     scale_x_date(
       date_breaks = "1 year",
       date_labels = "%Y") +
@@ -86,33 +136,40 @@ walk(names(station_list), function(station) {
       panel.spacing = unit(1, "lines"))
   
   # Save the PNG ----
-# ggsave(
-#  filename = here("outputs", "beach_timeseries_all", paste0(gsub("[^A-Za-z0-9]", "_", station), "_timeseries.png")),
-#  plot = station_plot, width = 15, height = 10,dpi = 400)
-  })
+#ggsave(filename = here("outputs", "beach_timeseries_all", #paste0(gsub("[^A-Za-z0-9]", "_", station), "_timeseries.png")),
+#                       plot = station_plot, width = 15, 
+#       height = 10,dpi = 400)
+  
+print(station_plot)})
 
 ```
 
-**10 Year Time Series Analysis - One PNG Per Beach Per Parameter**
+## **10 Year Time Series Analysis - One PNG Per Beach Per Parameter**
 
-This code creates a 10 year time series line graph for each log10 transformed result value. Each png is corresponds to a **beach location (n = 34)** and it will contain 4 panels if data is available. Each panel represents a different FIB parameters: E.Coli, Enterococcus, Total Coliform, and Fecal Coliforms.
+This code creates a 10 year time series line graph for each log10 transformed result value. Each png is corresponds to a **beach location (n = 38)** and it will contain 4 panels if data is available. Each panel represents a different FIB parameters: E.Coli, Enterococcus, Total Coliform, and Fecal Coliforms.
 
 ```{r}
 # Split data by beach 
-beach_list <- split(beach_clean, beach_clean$beachname)
+beach_list <- split(beach_clean, beach_clean$beach_name)
 
 # Loop through each beach 
 walk(names(beach_list), function(beach) {
   
   # Extract that station's data
   beach_df <- beach_list[[beach]] |>
-    arrange(sampledate) # Ensures that the sampledate column is in chronological order
+    arrange(sample_date) # Ensures that the sampledate column is in chronological order
   
   # Create the plot with 4 panels (one per parameter)
-  beach_plot <- ggplot(beach_df, aes(x = sampledate, y = log_result, color = parameter)) +
-    geom_line(aes(group = parameter), linewidth = 0.6, alpha = 0.8) +  # connect in date order
-      scale_color_manual(values = htb_colors) + # apply brand colors
+  beach_plot <- ggplot(beach_df, aes(x = sample_date, y = log_result, color = parameter)) +
     geom_point(alpha = 0.6, size = 1.2) +
+    geom_hline(data = log_thresholds,
+             aes(yintercept = threshold),
+             inherit.aes = FALSE,
+             linetype = "dashed",
+             color = "red",
+             linewidth = 0.7) +
+      scale_color_manual(values = htb_colors) + # apply brand colors
+    
     facet_wrap(~ parameter, scales = "fixed", nrow = 2) +  # 4 panels
     scale_x_date(
       date_breaks = "1 year",
@@ -128,35 +185,196 @@ walk(names(beach_list), function(beach) {
       panel.spacing = unit(1, "lines"))
   
   # Save the PNG 
-# ggsave(
-#  filename = here("outputs", "beach_timeseries_beachname", paste0(gsub("[^A-Za-z0-9]", "_", beach), "_timeseries.png")),
+#ggsave(
+#  filename = here("outputs", "beach_timeseries_beachname", #paste0(gsub("[^A-Za-z0-9]", "_", beach), "_timeseries.png")),
 #  plot = beach_plot, width = 15, height = 10,dpi = 400)
-  })
+  
+print(beach_plot)})
 ```
 
-# Enterococcus Filtered Exceedances
+# Exceedance Master Dataset
 
-This code creates a new dataframe and plots the exceedances of enterococcus concentrations that are **greater than or equal to 104 MPN/100 mL**. The CPN/100 mL units are treated the same as the MPN/100 mL units.
+## **Exceedance Dataframes**
+
+This code creates a new dataframe assigns the exceedances of Enterococcus (**greater than or equal to 104 MPN/100 mL**.), E. Coli (**greater than or equal to 235 MPN/100 mL)**, Total Coliforms (**greater than or equal to 10,000 MPN/100 mL)**, and Fecal Coliforms (**greater than or equal to 400 MPN/100 mL)** concentrations. The CPN/100 mL units are treated the same as the MPN/100 mL units.
+
+There are a total of 17,889 observations of exceedances across all four parameters across 37 beaches, and 99 monitoring sites out of 208,495 samples collected.
+
+**Precipitation Data**
 
 ```{r}
-# Create a new data frame with enterococcus only exceedance values
-entero_only <- beach_clean |>
-  filter(parameter == "Enterococcus",
-         result >= 104)   
+# Read in the Precipitation Data
+precip_2014_2024 <- read.csv(here("data","precipitation_clean_2014_2024.csv")) 
 
-# Loop through each beach
-walk(names(beach_list), function(beach) {
+# Mutate the Precip Data
+precip_clean <- precip_2014_2024 |>
+  mutate(date = as.Date(date), # Change date from chr to date
+         year = year(date), # extract the year from the date
+         day = day(date), # extract day from date
+         month = month(date, label = TRUE, abbr = TRUE), # extract month from the date
+         wet = prcp_in > 0.1) # defines wet weather as >0.1 inches
+
+# Create the data frame
+precip_monthly <- precip_clean |>
+  group_by(year,month) |> # group the data by year and month
+  summarise(total_rain_in = sum(prcp_in, na.rm = TRUE), # sum the precip total
+    .groups = "drop")
+```
+
+This code creates a new data frame called "beach_exceed" which assigns a binomial value (1 - exceed, 0 - no exceedance) to each individal sample across all monitoring stations. The data is then joined with the clean precipitation data by month, day, and year. The goal of this data frame is to run a binomial logistic regression to
+
+We know that precipitation varies depending on station and that exceedance values are also dependent on the local environment of the monitoring stations.
+
+```{r}
+# Create a new dataframe with the exceedance values & keep nonexceedance values
+beach_exceed <- beach_clean |>
+  mutate(exceed = case_when(
+    parameter == "Enterococcus" & result >= 104 ~ 1,
+    parameter == "E. Coli" & result >= 235 ~ 1,
+    parameter == "Total Coliforms" & result >= 10000 ~ 1,
+    parameter == "Fecal Coliforms" & result >= 400 ~1,
+    TRUE ~ 0)) |>
+  left_join(precip_clean, by = c("month", "day", "year"))
+
+# Data Check
+unique(beach_exceed$exceed)
+
+# Count all exceedance values
+exceed_count_all <- beach_exceed |>
+  count(exceed) 
+
+# Count exceedance & non-exceedance values by parameter
+exceed_count <- beach_exceed |>
+  group_by(parameter, exceed) |>
+  count(exceed) |>
+  ungroup()
+
+# Create a new dataframe with only exceedance values 
+exceed_all <- beach_exceed |>
+  filter(exceed == "1")
+```
+
+## Graph Exceedances
+
+#### Station Exceedance Timeseries
+
+This code creates a facet wrap and graphs for each monitoring station for all 4 FIB parameters and their exceedance values.
+
+```{r}
+# Split data by station 
+station_list_exceed <- split(exceed_all, exceed_all$station_name)
+
+# Loop through each station 
+walk(names(station_list_exceed), function(station) {
   
-  # Create the Enterococcus time-series plot
-  entero_exceedance_plot <- ggplot(entero_only,
-                       aes(x = sampledate, y = log_result)) +
-    
-    geom_line(color = htb_colors[1], linewidth = 0.6, alpha = 0.8) +
-    geom_point(color = htb_colors[1], alpha = 0.7, size = 1.3) +
+  # Extract that station's data
+  station_df_exceed <- station_list_exceed[[station]] |>
+    arrange(sample_date) # Ensures that the sampledate column is in chronological order
+  
+  # Create the plot with 4 panels (one per parameter)
+  station_plot_exceed <- ggplot(station_df_exceed, aes(x = sample_date, y = log_result, color = parameter)) +
+    geom_point(alpha = 0.6, size = 1.2) +
+    geom_hline(data = log_thresholds,
+             aes(yintercept = threshold),
+             inherit.aes = FALSE,
+             linetype = "dashed",
+             color = "red",
+             linewidth = 0.7) +
+    scale_color_manual(values = htb_colors) + # apply brand colors
+    facet_wrap(~ parameter, scales = "fixed", nrow = 2) +  # 4 panels
     scale_x_date(
       date_breaks = "1 year",
       date_labels = "%Y") +
-    
+    labs(title = paste0("10-Year Exceedance Time Series: ", station),
+      x = "Year",
+      y = expression(Log[10]*"(Concentration)")) +
+    theme_bw(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", 
+                                size = 14, hjust = 0.5),
+      axis.text.x = element_text(angle = 0, hjust = 0.5),
+      legend.position = "none",
+      panel.spacing = unit(1, "lines"))
+  
+  # Save the PNG 
+# ggsave(filename = here("outputs", #"beach_timeseries_exceedances", 
+#  "station_exceed", 
+#  paste0(gsub("[^A-Za-z0-9]", "_", station),
+#         "_exceed_timeseries.png")),
+#plot = station_plot_exceed, width = 15, height = 10,dpi = 400)
+print(station_plot_exceed)  })
+```
+
+#### Beach Exceedance Timeseries
+
+This code plots all 4 FIB parameters at the beach level.
+
+```{r}
+# Split data by beach 
+beach_list_exceed <- split(exceed_all, exceed_all$beach_name)
+
+# Loop through each beach 
+walk(names(beach_list_exceed), function(beach) {
+  
+  # Extract that station's data
+  beach_df_exceed <- beach_list_exceed[[beach]] |>
+    arrange(sample_date) # Ensures that the sampledate column is in chronological order
+  
+  # Create the plot with 4 panels (one per parameter)
+  beach_plot_exceed <- ggplot(beach_df_exceed, aes(x = sample_date, y = log_result, color = parameter)) +
+    geom_point(alpha = 0.6, size = 1.2) +
+    geom_hline(data = log_thresholds,
+             aes(yintercept = threshold),
+             inherit.aes = FALSE,
+             linetype = "dashed",
+             color = "red",
+             linewidth = 0.7) +
+      scale_color_manual(values = htb_colors) + # apply brand colors
+    facet_wrap(~ parameter, scales = "fixed", nrow = 2) +  # 4 panels
+    scale_x_date(
+      date_breaks = "1 year",
+      date_labels = "%Y") +
+    labs(title = paste0("10-Year Exceed Time Series: ", beach),
+      x = "Year",
+      y = expression(Log[10]*"(Concentration)")) +
+    theme_bw(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+      axis.text.x = element_text(angle = 0, hjust = 0.5),
+      legend.position = "none",
+      panel.spacing = unit(1, "lines"))
+  
+  # Save the PNG 
+# ggsave(
+#  filename = here("outputs", "beach_timeseries_exceedances",
+#  "beach_exceed", paste0(gsub("[^A-Za-z0-9]", "_", beach), #"_exceed_timeseries.png")),
+#  plot = beach_plot_exceed, width = 15, height = 10,dpi = 400)
+print(beach_plot_exceed)  })
+```
+
+**Enterococcus Exceedances Only Per Beach**
+
+```{r}
+# Loop through each beach
+walk(names(beach_list_exceed), function(beach) {
+  
+  # Extract that beach's data
+ beach_df_exceed <- beach_list_exceed[[beach]] |>
+    filter(parameter == "Enterococcus") |>
+    arrange(sample_date) 
+  
+  # Create the Enterococcus time-series plot
+  entero_exceedance_plot <- ggplot(beach_df_exceed,
+                       aes(x = sample_date, y = log_result)) +
+    geom_point(color = htb_colors[2], alpha = 0.7, 
+               size = 1.3) +
+    geom_hline(yintercept = 2.017033,
+             linetype = "dashed",
+             color = "red",
+             linewidth = 0.7) +
+    scale_x_date(
+      date_breaks = "1 year",
+      date_labels = "%Y") +
     labs(title = paste0("10-Year Enterococcus Exceedance: ", beach),
       x = "Year",
       y = expression(Log[10] * "(Concentration)")) +
@@ -168,32 +386,34 @@ walk(names(beach_list), function(beach) {
       legend.position = "none")
   
 #Save the PNG if needed
-#ggsave(filename = here("outputs", "beach_timeseries_exceedances",
- #                      "entero_exceed",
-     #             paste0(gsub("[^A-Za-z0-9]", "_", beach), #"_Entero_exceed_timeseries.png")),
-   #    plot = entero_exceedance_plot, width = 15, height = 10, dpi = 400)
-#})
+#ggsave(filename = here("outputs",
+#                      "beach_timeseries_exceedances",
+#                      "entero_exceed",
+#                  paste0(gsub("[^A-Za-z0-9]", "_", beach), #"_Entero_exceed_timeseries.png")),
+#       plot = entero_exceedance_plot, width = 15, height = 10, # dpi = 400)
+print(entero_exceedance_plot)})
 ```
 
-# E. Coli Filtered Exceedances
-
-This code creates a new dataframe and plots the exceedances of E. coli concentrations that are **greater than or equal to 235 MPN/100 mL**. The CPN/100 mL units are treated the same as the MPN/100 mL units.
+**E. Coli Exceedances Only Per Beach**
 
 ```{r}
-# Create a new data frame of e. coli concentrations that are exceeding the threshold
-ecoli_only <- beach_clean |>
-  filter(parameter == "E. Coli", #extract only e. coli
-         result >= 235) # extract concentrations greater than or equal to 
-
 # Loop through each beach
-walk(names(beach_list), function(beach) {
+walk(names(beach_list_exceed), function(beach) {
+  
+  # Extract that beach's data
+ beach_df_exceed <- beach_list_exceed[[beach]] |>
+    filter(parameter == "E. Coli") |>
+    arrange(sample_date) 
   
   # Create the Enterococcus time-series plot
-  ecoli_exceedance_plot <- ggplot(ecoli_only,
-                       aes(x = sampledate, y = log_result)) +
-    
-    geom_line(color = htb_colors[1], linewidth = 0.6, alpha = 0.8) +
-    geom_point(color = htb_colors[1], alpha = 0.7, size = 1.3) +
+  ecoli_exceedance_plot <- ggplot(beach_df_exceed,
+                       aes(x = sample_date, y = log_result)) +
+    geom_point(color = htb_colors[1], alpha = 0.7, 
+               size = 1.3) +
+    geom_hline(yintercept = 2.371068,
+             linetype = "dashed",
+             color = "red",
+             linewidth = 0.7) +
     scale_x_date(
       date_breaks = "1 year",
       date_labels = "%Y") +
@@ -209,45 +429,104 @@ walk(names(beach_list), function(beach) {
       legend.position = "none")
   
 #Save the PNG if needed
-#ggsave(filename = here("outputs", "beach_timeseries_exceedances",
-#                       "ecoli_exceed",
- #                 paste0(gsub("[^A-Za-z0-9]", "_", beach), #"_ecoli_exceed_timeseries.png")),
-#       plot = ecoli_exceedance_plot, width = 15, height = 10, dpi = 400)
-#})
+ggsave(filename = here("outputs", "beach_timeseries_exceedances",
+                       "ecoli_exceed",
+                  paste0(gsub("[^A-Za-z0-9]", "_", beach), "_ecoli_exceed_timeseries.png")),
+       plot = ecoli_exceedance_plot, width = 15, height = 10, dpi = 400)
+print(ecoli_exceedance_plot)})
 ```
 
-# Total Coliforms Filtered Exceedances
-
-This code creates a new dataframe and plots the exceedances of total coliforms concentrations that are **greater than or equal to 10,000 MPN/100 mL**. The CPN/100 mL units are treated the same as the MPN/100 mL units.
+**Total Coliforms Exceedances Only Per Beach**
 
 ```{r}
-# Create a new data frame of total coliforms concentrations that are exceeding the threshold
-total_coli_only <- beach_clean |>
-  filter(parameter == "Total Coliforms", #extract only total coliforms
-         result >= 10000) # extract concentrations greater than or equal to 
+# Loop through each beach
+walk(names(beach_list_exceed), function(beach) {
+  
+  # Extract that beach's data
+ beach_df_exceed <- beach_list_exceed[[beach]] |>
+    filter(parameter == "Total Coliforms") |>
+    arrange(sample_date) 
+  
+  # Create the Enterococcus time-series plot
+  total_exceedance_plot <- ggplot(beach_df_exceed,
+                       aes(x = sample_date, y = log_result)) +
+    geom_point(color = htb_colors[3], alpha = 0.7, 
+               size = 1.3) +
+    geom_hline(yintercept = 4.000000,
+             linetype = "dashed",
+             color = "red",
+             linewidth = 0.7) +
+    scale_x_date(
+      date_breaks = "1 year",
+      date_labels = "%Y") +
+    
+    labs(title = paste0("10-Year Total Coliforms Exceedance: ", beach),
+      x = "Year",
+      y = expression(Log[10] * "(Concentration)")) +
+    
+    theme_bw(base_size = 12) +
+    theme(plot.title = element_text(face = "bold", 
+                                    size = 14, hjust = 0.5),
+      axis.text.x = element_text(angle = 0, hjust = 0.5),
+      legend.position = "none")
+  
+#Save the PNG if needed
+#ggsave(filename = here("outputs", #"beach_timeseries_exceedances",
+#                       "total_exceed",
+#                  paste0(gsub("[^A-Za-z0-9]", "_", beach), #"_total_exceed_timeseries.png")),
+#       plot = total_exceedance_plot, width = 15, 
+#       height = 10, dpi = 400)
+print(total_exceedance_plot)})
 ```
 
-# Fecal Coliforms Filtered Exceedances
-
-This code creates a new dataframe and plots the exceedances of fecal coliforms concentrations that are **greater than or equal to 400 MPN/100 mL**. The CPN/100 mL units are treated the same as the MPN/100 mL units.
+**Fecal Coliforms** **Exceedances Only Per Beach**
 
 ```{r}
-# Create a new data frame of fecal coliforms concentrations that are exceeding the threshold
-fecal_coli_only <- beach_clean |>
-  filter(parameter == "Fecal Coliforms", #extract only fecal coliforms
-         result >= 400) # extract concentrations greater than or equal to 
+# Loop through each beach
+walk(names(beach_list_exceed), function(beach) {
+  
+  # Extract that beach's data
+ beach_df_exceed <- beach_list_exceed[[beach]] |>
+    filter(parameter == "Fecal Coliforms") |>
+    arrange(sample_date) 
+  
+  # Create the Enterococcus time-series plot
+  fecal_exceedance_plot <- ggplot(beach_df_exceed,
+                       aes(x = sample_date, y = log_result)) +
+    geom_point(color = htb_colors[4], alpha = 0.7, 
+               size = 1.3) +
+    geom_hline(yintercept = 2.602060,
+             linetype = "dashed",
+             color = "red",
+             linewidth = 0.7) +
+    scale_x_date(
+      date_breaks = "1 year",
+      date_labels = "%Y") +
+    
+    labs(title = paste0("10-Year Fecal Coliforms Exceedance: ", beach),
+      x = "Year",
+      y = expression(Log[10] * "(Concentration)")) +
+    
+    theme_bw(base_size = 12) +
+    theme(plot.title = element_text(face = "bold", 
+                                    size = 14, hjust = 0.5),
+      axis.text.x = element_text(angle = 0, hjust = 0.5),
+      legend.position = "none")
+  
+#Save the PNG if needed
+ggsave(filename = here("outputs", "beach_timeseries_exceedances",
+                       "fecal_exceed",
+                  paste0(gsub("[^A-Za-z0-9]", "_", beach), "_fecal_exceed_timeseries.png")),
+       plot = fecal_exceedance_plot, width = 15, height = 10, dpi = 400)
+print(fecal_exceedance_plot)})
 ```
 
-# Master Dataset for Exceedance Values
+## Statistics on Exceedances
 
 ```{r}
-# Combine the 4 datasets of the exceedance values of each FIB parameter into one main dataset. 
-exceed_all <- bind_rows(entero_only, ecoli_only, 
-                        total_coli_only, fecal_coli_only)
-
 # Create the exceedance statistics for the date for all 10 years
 exceed_stats <- exceed_all |>
-  mutate(year = lubridate::year(sampledate)) |>
+  mutate(year = lubridate::year(sample_date)) |>
   group_by(parameter) |>
   summarise(
     total_exceed = n(),
@@ -258,9 +537,16 @@ exceed_stats <- exceed_all |>
     max_exceed = max(result, na.rm = TRUE))
 exceed_stats # print the table
     
+# Find how many beaches and stations total had exceedances
+unique(exceed_all$beach_name)
+unique(exceed_all$station_name)
+
+```
+
+```{r}
 # Create the exceedance statistics for the date for all 10 years
 exceed_stats_yr <- exceed_all |>
-  mutate(year = lubridate::year(sampledate)) |>
+  mutate(year = lubridate::year(sample_date)) |>
   group_by(parameter, year) |>
   summarise(
     total_exceed = n(),
@@ -275,8 +561,6 @@ exceed_stats_yr
 ```
 
 ```{r}
-# Create bar graphs to understand the total amount of exceedances for each year
-
 # Create the boxplot
 exceedance_box <- ggplot(exceed_stats_yr, aes(x = factor(year), y = total_exceed)) +
   geom_boxplot(alpha = 0.6, size = 1.0, fill = htb_colors[1]) +
@@ -289,24 +573,26 @@ exceedance_box <- ggplot(exceed_stats_yr, aes(x = factor(year), y = total_exceed
   theme_bw(12) +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
-    plot.title = element_text(face = "bold", hjust = 0.5)
-  )
+    plot.title = element_text(face = "bold", hjust = 0.5))
 
-ggsave(
-  filename = here("outputs", "beach_timeseries_exceedances", "annual_exceed_boxplot.png"),
-  plot = exceedance_box,
-  width = 10,
-  height = 6,
-  dpi = 400
-)
+print(exceedance_box)
+
+# Save the plot
+#ggsave(
+#  filename = here("outputs", "beach_timeseries_exceedances", #"annual_exceed_boxplot.png"),
+#  plot = exceedance_box,
+#  width = 10,
+#  height = 6,
+#  dpi = 400)
 ```
 
--   **Research Question: What beach had the highest total number of exceedances across all 10 years.**
+**Research Question: What beach had the highest total number of exceedances across all 10 years.**
 
 ```{r}
+# Calculate the total exceedances for each beach by parameter
 beach_exceed_stats_total <- exceed_all |>
-  mutate(year = lubridate::year(sampledate)) |>
-  group_by(parameter, beachname) |>
+  mutate(year = lubridate::year(sample_date)) |>
+  group_by(parameter, beach_name) |>
   summarise(
     total_exceed = n(),
     mean_exceed = mean(result, na.rm = TRUE),
@@ -318,12 +604,162 @@ beach_exceed_stats_total <- exceed_all |>
 beach_exceed_stats_total 
 
 
-
 exceed_ranked_tables <- beach_exceed_stats_total |>
   group_by(parameter) |>
   arrange(parameter, desc(total_exceed)) |>
   mutate(rank = row_number()) |>
-  select(parameter, rank, beachname, total_exceed) |>
+  select(parameter, rank, beach_name, total_exceed) |>
   ungroup()
 exceed_ranked_tables
+```
+
+## Exceedance Percentages
+
+**Goal:** This code shows **cumulative** exceedance for all four FIB parameters since any exceedance will trigger a beach advisory. X-axis represents monitoring sites and y-axis represents exceedance percentages. Yellow highlighted column visualizes the month with highest average exceedance percentages across the monitoring years.
+
+```{r}
+# Calculate the total exceedances for each beach by parameter
+station_exceed_total <- exceed_all |>
+  mutate(year = lubridate::year(sample_date)) |>
+  group_by(station_name, month) |>
+  summarise(
+    total_exceed = n(),
+    mean_exceed = mean(result, na.rm = TRUE),
+    median_exceed = median(result, na.rm = TRUE),
+    variance_exceed = var(result, na.rm = TRUE),
+    min_exceed = min(result, na.rm = TRUE),
+    max_exceed = max(result, na.rm = TRUE),
+    .groups = "drop")
+station_exceed_total 
+```
+
+## Simple Logit Binomial Model
+
+**FIB Exceedance Data**
+
+This code aggregates the monthly exceedances that occur across the 99 monitoring stations.
+
+```{r}
+# Calculate the monthly exceedance values 
+monthly_exceed <- beach_exceed |>
+  group_by(year, month, station_name) |>
+  summarise(
+    n = n(), # count samples 
+    e = sum(exceed, na.rm = TRUE),
+    exceed_pct = (e / n) * 100,
+    .groups = "drop")
+
+# Calculate total exceedance values
+total_exceed <- beach_exceed |>
+  group_by(station_name) |>
+  summarise(n = n(), 
+            e = sum(exceed, na.ra = TRUE),
+            groups = "drop")
+```
+
+**FIB v Rain Statistics**
+
+[**Equation**]{.underline}: Natural log (p/1-p) =β0​+β1​(rain)+β2​(station)
+
+-   p represents the probability of an exceedance occuring that month
+
+-   Caveat: This regression looks at exceedances per month, which is often in relation to reporting requirements and compliance. However, we know that FIB tends to spike between 3-5 days after a rain event.
+
+The binomial logistic regressions was conducted to understand the relationship the odds an exceedance is to occur if there is zero rain compared to one inch of rain. The baseline scenario (𝛽0) uses a baseline station (B_10) by default in R, to calculate the intercept and the rain variable.
+
+The outputs include an intercept value (-3.248290 +- 0.097580947) and total rain in inches (0.391650 +- 0.004568562).
+
+[**General Interpretation**]{.underline}: When there is zero rain, the likelihood of an exceedance is low. When there is one inch of rain, the likelihood of exceedance is high.
+
+Technical Interpretation:
+
+**Log-odds that an exceedance is to occur is based on this equation:**
+
+Log-odds of an exceedance occurring = -3.248290 + 0.391650x
+
+-   x represents the total rain (in inches)
+
+**Probability when 0 inches of Rain Occurs**
+
+Probability = e\^-3.248290 /(1-e\^-3.248290)
+
+**Probability when 1 inches of Rain Occurs**
+
+For each additional inch of rainfall, the odds of exceedance for that month is 48%.
+
+This was calculated using this equation e^0.391650^ + e^0.004568562^ .
+
+```{r}
+# Running the regression for all stations
+exceed_glm <- glm(
+  cbind(e, n - e) ~ total_rain_in + station_name,
+  family = binomial(link = "logit"),
+  data = monthly_exceed)
+exceed_glm
+
+# Create the table
+exceed_glm_coef_table <- summary(exceed_glm)$coefficients
+
+# Save as CSV
+#write.csv(exceed_glm_coef_table,
+#  here("data", "exceed_v_prcp_stat_coef.csv"),
+#  row.names = TRUE)
+
+# Find which station was used as a baseline scenario (B_10)
+#monthly_exceed$station_name <- as.factor#(monthly_exceed$station_name)
+#levels(monthly_exceed$station_name)
+```
+
+```{r}
+pred_data$prob <- predict(
+  exceed_glm,
+  newdata = pred_data,
+  type = "response"
+)
+ggplot() +
+  geom_point(
+    data = monthly_exceed,
+    aes(total_rain_in, e/n),
+    alpha = 0.4
+  ) +
+  geom_line(
+    data = pred_data,
+    aes(total_rain_in, prob),
+    linewidth = 1.2
+  ) +
+  labs(
+    x = "Monthly Rainfall (inches)",
+    y = "Probability of Exceedance",
+    title = "Predicted Probability of FIB Exceedance vs Rainfall"
+  )
+```
+
+```{r}
+# Calculate baseline probability %
+(exp(-3.248290)/(1 + exp(-3.248290)))*100
+
+
+# Calculate the probability an exceedance were to occur if there was a 1 in increase in total rain 
+(exp(0.391650))*100
+(exp(0.004568562))*100
+  
+```
+
+### Top 10 Sites
+
+```{r}
+coef_df <- exceed_glm_coef_table |>
+  as.data.frame() |>
+    rownames_to_column(var = "term")
+
+
+exceed_top_10 <- coef_df |>
+  filter(term %in% c("station_nameSMB-3-3", 
+                     "station_nameMDRH-3",
+         "station_nameMDRH-2", "station_nameMDRH-1",
+         "station_nameCB-02", "station_nameSMB-MC-2",
+         "station_nameSMB-3-4", "station_nameSMB-1-18",
+         "station_nameSMB-2-7", "station_nameSMB-1-12"))
+exceed_top_10
+
 ```
