@@ -1,0 +1,78 @@
+TT-----------------------------------------------------------------------------------------
+TT LSPC -- Loading Simulation Program, C++
+TT Version 6.0 (64-bit) - Jan 2020
+TT
+TT Created through code updates by:
+TT Paradigm Environmental, Inc.
+TT San Diego, California, USA
+TT www.paradigmh2o.com
+TT 
+TT Based upon LSPC version 5.0 (Mar 2018), originally developed by :
+TT United States Environmental Protection Agency
+TT with support by Tetra Tech, Inc.
+TT https://github.com/USEPA/LSPC-Loading-Simulation-Program 
+TT 
+TT NOTE: The line starting with the letter c and followed by space or - is a comment line.
+TT       There must be no comment line in between the data lines
+TT       The input text field must be a continuous string without any space in between the characters
+TT-----------------------------------------------------------------------------------------
+TT LSPC MODEL LANDUSE SUMMARY HEADER FILE
+TT This header file was created at 11:09:15pm on 02/15/2026
+TT Output start time:  10/1/2008
+TT Output end time:    10/1/2018
+TT Simulation time step:   60 min
+TT Label   
+TT AREA     average area (acre)
+TT PREC     total precipitation (rain + snow) volume (in-acre/year) 
+TT SURO     total surface outflow rate volume (in-acre/year) 
+TT IFWO     total interflow outflow rate volume (in-acre/year) 
+TT AGWO     total groundwater outflow rate volume (in-acre/year) 
+TT PERO     total outflow rate volume (SURO+IFWO+AGWO) (in-acre/year) 
+TT TAET     total actual evapo-transpiration volume (in-acre/year) 
+TT SEDLOAD  sediments load (SEDWSSD+SEDSCRS+SEDSURO+SEDIFWO+SEDAGWO) from land (tons/year) 
+TT SEDWSSD  sediments load from land (tons/year)
+TT SEDSCRS  sediments load from land (tons/year)
+TT SEDSURO  sediments load from land (tons/year)
+TT SEDIFWO  sediments load from land (tons/year)
+TT SEDAGWO  sediments load from land (tons/year)
+TT SO_TN surface flux of QUAL TN (lb/year) 
+TT IO_TN interflow flux of QUAL TN (lb/year) 
+TT AO_TN groundwater flux of QUAL TN (lb/year) 
+TT PO_TN total flux (SO+IO+AO+SED) of QUAL TN (lb/year) 
+TT SO_TP surface flux of QUAL TP (lb/year) 
+TT IO_TP interflow flux of QUAL TP (lb/year) 
+TT AO_TP groundwater flux of QUAL TP (lb/year) 
+TT PO_TP total flux (SO+IO+AO+SED) of QUAL TP (lb/year) 
+TT SED_TP total flux (SEDWSSD+SEDSCRS) of sediment associated QUAL TP (lb/year) 
+TT SEDWSSD_TP total flux of sediment associated QUAL TP (lb/year) 
+TT SEDSCRS_TP total flux of sediment associated QUAL TP (lb/year) 
+TT SO_TCd surface flux of QUAL TCd (lb/year) 
+TT IO_TCd interflow flux of QUAL TCd (lb/year) 
+TT AO_TCd groundwater flux of QUAL TCd (lb/year) 
+TT PO_TCd total flux (SO+IO+AO+SED) of QUAL TCd (lb/year) 
+TT SED_TCd total flux (SEDWSSD+SEDSCRS) of sediment associated QUAL TCd (lb/year) 
+TT SEDWSSD_TCd total flux of sediment associated QUAL TCd (lb/year) 
+TT SEDSCRS_TCd total flux of sediment associated QUAL TCd (lb/year) 
+TT SO_TCu surface flux of QUAL TCu (lb/year) 
+TT IO_TCu interflow flux of QUAL TCu (lb/year) 
+TT AO_TCu groundwater flux of QUAL TCu (lb/year) 
+TT PO_TCu total flux (SO+IO+AO+SED) of QUAL TCu (lb/year) 
+TT SED_TCu total flux (SEDWSSD+SEDSCRS) of sediment associated QUAL TCu (lb/year) 
+TT SEDWSSD_TCu total flux of sediment associated QUAL TCu (lb/year) 
+TT SEDSCRS_TCu total flux of sediment associated QUAL TCu (lb/year) 
+TT SO_TPb surface flux of QUAL TPb (lb/year) 
+TT IO_TPb interflow flux of QUAL TPb (lb/year) 
+TT AO_TPb groundwater flux of QUAL TPb (lb/year) 
+TT PO_TPb total flux (SO+IO+AO+SED) of QUAL TPb (lb/year) 
+TT SED_TPb total flux (SEDWSSD+SEDSCRS) of sediment associated QUAL TPb (lb/year) 
+TT SEDWSSD_TPb total flux of sediment associated QUAL TPb (lb/year) 
+TT SEDSCRS_TPb total flux of sediment associated QUAL TPb (lb/year) 
+TT SO_TZn surface flux of QUAL TZn (lb/year) 
+TT IO_TZn interflow flux of QUAL TZn (lb/year) 
+TT AO_TZn groundwater flux of QUAL TZn (lb/year) 
+TT PO_TZn total flux (SO+IO+AO+SED) of QUAL TZn (lb/year) 
+TT SED_TZn total flux (SEDWSSD+SEDSCRS) of sediment associated QUAL TZn (lb/year) 
+TT SEDWSSD_TZn total flux of sediment associated QUAL TZn (lb/year) 
+TT SEDSCRS_TZn total flux of sediment associated QUAL TZn (lb/year) 
+TT
+TT     This is header file for the landuse summary file landuse.csv

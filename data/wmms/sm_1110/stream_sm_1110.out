@@ -1,0 +1,160 @@
+TT-----------------------------------------------------------------------------------------
+TT LSPC -- Loading Simulation Program, C++
+TT Version 6.0 (64-bit) - Jan 2020
+TT
+TT Created through code updates by:
+TT Paradigm Environmental, Inc.
+TT San Diego, California, USA
+TT www.paradigmh2o.com
+TT 
+TT Based upon LSPC version 5.0 (Mar 2018), originally developed by :
+TT United States Environmental Protection Agency
+TT with support by Tetra Tech, Inc.
+TT https://github.com/USEPA/LSPC-Loading-Simulation-Program 
+TT 
+TT NOTE: The line starting with the letter c and followed by space or - is a comment line.
+TT       There must be no comment line in between the data lines
+TT       The input text field must be a continuous string without any space in between the characters
+TT-----------------------------------------------------------------------------------------
+TT LSPC MODEL STREAM SUMMARY HEADER FILE
+TT This header file was created at 11:09:15pm on 02/15/2026
+TT Output start time:  10/1/2008
+TT Output end time:    10/1/2018
+TT Simulation time step:   60 min
+TT Label   
+TT DRAT_IVOL  total inflow volume (USIF+USBP+LUIF+PSIF+PSDT+PCP+USLINK) (ft^3/year)
+TT DRAT_OVOL  total outflow volume (sum of RO for all outlets) (ft^3/year)
+TT USLINK     total upstream link (card 435) volume (ft^3/year)
+TT PCP        total instream precipitation volume (ft^3/year)
+TT EVAP       total instream evaporation volume (ft^3/year)
+TT INFILT     total instream infiltration volume (ft^3/year)
+TT USIF     upstream inflow rate volume (ft^3/year)
+TT LUIF     land inflow rate volume (LUIF-LUBP) (ft^3/year)
+TT USBP     upstream bypass inflow rate volume (ft^3/year)
+TT LUBP     land bypass flow rate volume (ft^3/year)
+TT IRWD     irrigation withdrawal rate volume (ft^3/year)
+TT IVOL     total inflow rate volume (USIF+USBP+LUIF+PSIF+PSDT+USLINK) (ft^3/year)
+TT RO       outflow volume for each outlet (ft^3/year)
+TT BP       bypass volume for each outlet (ft^3/year)
+TT DRAT_ISED     total inflow sediments load (BERSED+USSED+USSBP+LUSED+PSSED+PSDTSED+LNKSED+SCRMASS) (english tons/year)
+TT DRAT_OSED     total outflow sediments load (sum of ROSED for all outlets) (english tons/year)
+TT USSED    sediments load from the upstream (USSED+LNKSED) (english tons/year)
+TT LUSED    sediments load from the land (LUSED-LUSBP) (english tons/year)
+TT USSBP    bypass sediments load from the upstream (english tons/year)
+TT LUSBP    bypass sediments load from the land (english tons/year)
+TT IRWDSED  sediments load from the irrigation withdrawal (english tons/year)
+TT ISED     total sediments load (BERSED+USSED+USSBP+LUSED+PSSED+PSDTSED+LNKSED-PSWDSED-IRWDSED) (english tons/year)
+TT DEPSCR   net sediment deposition (positive) or scour (negative) (english tons/year)
+TT DEPMASS   sediment deposition (english tons/year)
+TT SCRMASS   sediment scour (english tons/year)
+TT BEDSED   total bed sediment load (english tons/year)
+TT ROSED_1  class 1 sediments load for each outlet (english tons/year)
+TT ROSED_2  class 2 sediments load for each outlet (english tons/year)
+TT ROSED_3  class 3 sediments load for each outlet (english tons/year)
+TT BPSED_1  class 1 bypass sediments load for each outlet (english tons/year)
+TT BPSED_2  class 2 bypass sediments load for each outlet (english tons/year)
+TT BPSED_3  class 3 bypass sediments load for each outlet (english tons/year)
+TT DRAT_IGQL_TN      total inflow load (ADTOT+USQUAL+LUQUAL+USQUBP+PSQUAL+PSDTQUAL+BERQUAL+LNKQUAL+SCRQAL) of QUAL TN (lb/year) 
+TT DRAT_OGQL_TN      total outflow load (sum of QUAL for all outlets) of QUAL TN (lb/year) 
+TT USQUAL_TN     upstream inflow load (USQUAL+LNKQUAL) of QUAL TN (lb/year) 
+TT LUQUAL_TN     land inflow load (LUQUAL-LUQUBP) of QUAL TN (lb/year) 
+TT USQUBP_TN     bypass upstream inflow load of QUAL TN (lb/year) 
+TT LUQUBP_TN     bypass land inflow load of QUAL TN (lb/year) 
+TT IRWDQUAL_TN   irrigation withdrawal load of QUAL TN (lb/year) 
+TT INFILTQUAL_TN   infiltration loss load of QUAL TN (lb/year) 
+TT INFILTQUALTARGET_TN   infiltration target load of QUAL TN (lb/year) 
+TT ADTOT_TN      total atmospheric load (DRY+WET) of QUAL TN (lb/year) 
+TT IQUAL_TN      total inflow load (ADTOT+USQUAL+LUQUAL+USQUBP+PSQUAL+PSDTQUAL+BERQUAL+LNKQUAL-IRWDQUAL-PSWDQUAL-INFILTQUAL) of QUAL TN (lb/year) 
+TT ADQAL_TN      adsorption/desorption between dissolved state and total bed sediment (sand + silt + clay) of QUAL TN (lb/year) 
+TT DSQAL_TN      deposition/scouring (sand + silt + clay) of QUAL TN (lb/year) 
+TT DEPQAL_TN      deposition (sand + silt + clay) of QUAL TN (lb/year) 
+TT SCRQAL_TN      scouring (sand + silt + clay) of QUAL TN (lb/year) 
+TT QUAL_TN     load of QUAL TN (lb/year) for each outlet
+TT QUBP_TN     bypass load of QUAL TN (lb/year) for each outlet
+TT DRAT_IGQL_TP      total inflow load (ADTOT+USQUAL+LUQUAL+USQUBP+PSQUAL+PSDTQUAL+BERQUAL+LNKQUAL+SCRQAL) of QUAL TP (lb/year) 
+TT DRAT_OGQL_TP      total outflow load (sum of QUAL for all outlets) of QUAL TP (lb/year) 
+TT USQUAL_TP     upstream inflow load (USQUAL+LNKQUAL) of QUAL TP (lb/year) 
+TT LUQUAL_TP     land inflow load (LUQUAL-LUQUBP) of QUAL TP (lb/year) 
+TT USQUBP_TP     bypass upstream inflow load of QUAL TP (lb/year) 
+TT LUQUBP_TP     bypass land inflow load of QUAL TP (lb/year) 
+TT IRWDQUAL_TP   irrigation withdrawal load of QUAL TP (lb/year) 
+TT INFILTQUAL_TP   infiltration loss load of QUAL TP (lb/year) 
+TT INFILTQUALTARGET_TP   infiltration target load of QUAL TP (lb/year) 
+TT ADTOT_TP      total atmospheric load (DRY+WET) of QUAL TP (lb/year) 
+TT IQUAL_TP      total inflow load (ADTOT+USQUAL+LUQUAL+USQUBP+PSQUAL+PSDTQUAL+BERQUAL+LNKQUAL-IRWDQUAL-PSWDQUAL-INFILTQUAL) of QUAL TP (lb/year) 
+TT ADQAL_TP      adsorption/desorption between dissolved state and total bed sediment (sand + silt + clay) of QUAL TP (lb/year) 
+TT DSQAL_TP      deposition/scouring (sand + silt + clay) of QUAL TP (lb/year) 
+TT DEPQAL_TP      deposition (sand + silt + clay) of QUAL TP (lb/year) 
+TT SCRQAL_TP      scouring (sand + silt + clay) of QUAL TP (lb/year) 
+TT QUAL_TP     load of QUAL TP (lb/year) for each outlet
+TT QUBP_TP     bypass load of QUAL TP (lb/year) for each outlet
+TT DRAT_IGQL_TCd      total inflow load (ADTOT+USQUAL+LUQUAL+USQUBP+PSQUAL+PSDTQUAL+BERQUAL+LNKQUAL+SCRQAL) of QUAL TCd (lb/year) 
+TT DRAT_OGQL_TCd      total outflow load (sum of QUAL for all outlets) of QUAL TCd (lb/year) 
+TT USQUAL_TCd     upstream inflow load (USQUAL+LNKQUAL) of QUAL TCd (lb/year) 
+TT LUQUAL_TCd     land inflow load (LUQUAL-LUQUBP) of QUAL TCd (lb/year) 
+TT USQUBP_TCd     bypass upstream inflow load of QUAL TCd (lb/year) 
+TT LUQUBP_TCd     bypass land inflow load of QUAL TCd (lb/year) 
+TT IRWDQUAL_TCd   irrigation withdrawal load of QUAL TCd (lb/year) 
+TT INFILTQUAL_TCd   infiltration loss load of QUAL TCd (lb/year) 
+TT INFILTQUALTARGET_TCd   infiltration target load of QUAL TCd (lb/year) 
+TT ADTOT_TCd      total atmospheric load (DRY+WET) of QUAL TCd (lb/year) 
+TT IQUAL_TCd      total inflow load (ADTOT+USQUAL+LUQUAL+USQUBP+PSQUAL+PSDTQUAL+BERQUAL+LNKQUAL-IRWDQUAL-PSWDQUAL-INFILTQUAL) of QUAL TCd (lb/year) 
+TT ADQAL_TCd      adsorption/desorption between dissolved state and total bed sediment (sand + silt + clay) of QUAL TCd (lb/year) 
+TT DSQAL_TCd      deposition/scouring (sand + silt + clay) of QUAL TCd (lb/year) 
+TT DEPQAL_TCd      deposition (sand + silt + clay) of QUAL TCd (lb/year) 
+TT SCRQAL_TCd      scouring (sand + silt + clay) of QUAL TCd (lb/year) 
+TT QUAL_TCd     load of QUAL TCd (lb/year) for each outlet
+TT QUBP_TCd     bypass load of QUAL TCd (lb/year) for each outlet
+TT DRAT_IGQL_TCu      total inflow load (ADTOT+USQUAL+LUQUAL+USQUBP+PSQUAL+PSDTQUAL+BERQUAL+LNKQUAL+SCRQAL) of QUAL TCu (lb/year) 
+TT DRAT_OGQL_TCu      total outflow load (sum of QUAL for all outlets) of QUAL TCu (lb/year) 
+TT USQUAL_TCu     upstream inflow load (USQUAL+LNKQUAL) of QUAL TCu (lb/year) 
+TT LUQUAL_TCu     land inflow load (LUQUAL-LUQUBP) of QUAL TCu (lb/year) 
+TT USQUBP_TCu     bypass upstream inflow load of QUAL TCu (lb/year) 
+TT LUQUBP_TCu     bypass land inflow load of QUAL TCu (lb/year) 
+TT IRWDQUAL_TCu   irrigation withdrawal load of QUAL TCu (lb/year) 
+TT INFILTQUAL_TCu   infiltration loss load of QUAL TCu (lb/year) 
+TT INFILTQUALTARGET_TCu   infiltration target load of QUAL TCu (lb/year) 
+TT ADTOT_TCu      total atmospheric load (DRY+WET) of QUAL TCu (lb/year) 
+TT IQUAL_TCu      total inflow load (ADTOT+USQUAL+LUQUAL+USQUBP+PSQUAL+PSDTQUAL+BERQUAL+LNKQUAL-IRWDQUAL-PSWDQUAL-INFILTQUAL) of QUAL TCu (lb/year) 
+TT ADQAL_TCu      adsorption/desorption between dissolved state and total bed sediment (sand + silt + clay) of QUAL TCu (lb/year) 
+TT DSQAL_TCu      deposition/scouring (sand + silt + clay) of QUAL TCu (lb/year) 
+TT DEPQAL_TCu      deposition (sand + silt + clay) of QUAL TCu (lb/year) 
+TT SCRQAL_TCu      scouring (sand + silt + clay) of QUAL TCu (lb/year) 
+TT QUAL_TCu     load of QUAL TCu (lb/year) for each outlet
+TT QUBP_TCu     bypass load of QUAL TCu (lb/year) for each outlet
+TT DRAT_IGQL_TPb      total inflow load (ADTOT+USQUAL+LUQUAL+USQUBP+PSQUAL+PSDTQUAL+BERQUAL+LNKQUAL+SCRQAL) of QUAL TPb (lb/year) 
+TT DRAT_OGQL_TPb      total outflow load (sum of QUAL for all outlets) of QUAL TPb (lb/year) 
+TT USQUAL_TPb     upstream inflow load (USQUAL+LNKQUAL) of QUAL TPb (lb/year) 
+TT LUQUAL_TPb     land inflow load (LUQUAL-LUQUBP) of QUAL TPb (lb/year) 
+TT USQUBP_TPb     bypass upstream inflow load of QUAL TPb (lb/year) 
+TT LUQUBP_TPb     bypass land inflow load of QUAL TPb (lb/year) 
+TT IRWDQUAL_TPb   irrigation withdrawal load of QUAL TPb (lb/year) 
+TT INFILTQUAL_TPb   infiltration loss load of QUAL TPb (lb/year) 
+TT INFILTQUALTARGET_TPb   infiltration target load of QUAL TPb (lb/year) 
+TT ADTOT_TPb      total atmospheric load (DRY+WET) of QUAL TPb (lb/year) 
+TT IQUAL_TPb      total inflow load (ADTOT+USQUAL+LUQUAL+USQUBP+PSQUAL+PSDTQUAL+BERQUAL+LNKQUAL-IRWDQUAL-PSWDQUAL-INFILTQUAL) of QUAL TPb (lb/year) 
+TT ADQAL_TPb      adsorption/desorption between dissolved state and total bed sediment (sand + silt + clay) of QUAL TPb (lb/year) 
+TT DSQAL_TPb      deposition/scouring (sand + silt + clay) of QUAL TPb (lb/year) 
+TT DEPQAL_TPb      deposition (sand + silt + clay) of QUAL TPb (lb/year) 
+TT SCRQAL_TPb      scouring (sand + silt + clay) of QUAL TPb (lb/year) 
+TT QUAL_TPb     load of QUAL TPb (lb/year) for each outlet
+TT QUBP_TPb     bypass load of QUAL TPb (lb/year) for each outlet
+TT DRAT_IGQL_TZn      total inflow load (ADTOT+USQUAL+LUQUAL+USQUBP+PSQUAL+PSDTQUAL+BERQUAL+LNKQUAL+SCRQAL) of QUAL TZn (lb/year) 
+TT DRAT_OGQL_TZn      total outflow load (sum of QUAL for all outlets) of QUAL TZn (lb/year) 
+TT USQUAL_TZn     upstream inflow load (USQUAL+LNKQUAL) of QUAL TZn (lb/year) 
+TT LUQUAL_TZn     land inflow load (LUQUAL-LUQUBP) of QUAL TZn (lb/year) 
+TT USQUBP_TZn     bypass upstream inflow load of QUAL TZn (lb/year) 
+TT LUQUBP_TZn     bypass land inflow load of QUAL TZn (lb/year) 
+TT IRWDQUAL_TZn   irrigation withdrawal load of QUAL TZn (lb/year) 
+TT INFILTQUAL_TZn   infiltration loss load of QUAL TZn (lb/year) 
+TT INFILTQUALTARGET_TZn   infiltration target load of QUAL TZn (lb/year) 
+TT ADTOT_TZn      total atmospheric load (DRY+WET) of QUAL TZn (lb/year) 
+TT IQUAL_TZn      total inflow load (ADTOT+USQUAL+LUQUAL+USQUBP+PSQUAL+PSDTQUAL+BERQUAL+LNKQUAL-IRWDQUAL-PSWDQUAL-INFILTQUAL) of QUAL TZn (lb/year) 
+TT ADQAL_TZn      adsorption/desorption between dissolved state and total bed sediment (sand + silt + clay) of QUAL TZn (lb/year) 
+TT DSQAL_TZn      deposition/scouring (sand + silt + clay) of QUAL TZn (lb/year) 
+TT DEPQAL_TZn      deposition (sand + silt + clay) of QUAL TZn (lb/year) 
+TT SCRQAL_TZn      scouring (sand + silt + clay) of QUAL TZn (lb/year) 
+TT QUAL_TZn     load of QUAL TZn (lb/year) for each outlet
+TT QUBP_TZn     bypass load of QUAL TZn (lb/year) for each outlet
+TT
+TT     This is header file for the stream summary file stream.csv
