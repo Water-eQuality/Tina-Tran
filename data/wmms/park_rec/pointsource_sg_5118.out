@@ -1,0 +1,36 @@
+TT-----------------------------------------------------------------------------------------
+TT LSPC -- Loading Simulation Program, C++
+TT Version 6.0 (64-bit) - Jan 2020
+TT
+TT Created through code updates by:
+TT Paradigm Environmental, Inc.
+TT San Diego, California, USA
+TT www.paradigmh2o.com
+TT 
+TT Based upon LSPC version 5.0 (Mar 2018), originally developed by :
+TT United States Environmental Protection Agency
+TT with support by Tetra Tech, Inc.
+TT https://github.com/USEPA/LSPC-Loading-Simulation-Program 
+TT 
+TT NOTE: The line starting with the letter c and followed by space or - is a comment line.
+TT       There must be no comment line in between the data lines
+TT       The input text field must be a continuous string without any space in between the characters
+TT-----------------------------------------------------------------------------------------
+TT LSPC MODEL POINT SOURCE SUMMARY HEADER FILE
+TT This header file was created at 08:58:59am on 02/16/2026
+TT Output start time:  10/1/2008
+TT Output end time:    10/1/2018
+TT Simulation time step:   60 min
+TT Label   
+TT PS_FLOW     pointsource inflow rate volume (ft3/year)
+TT PS_SAND    sand load from the pointsource inflow (english tons/year)
+TT PS_SILT    silt load from the pointsource inflow (english tons/year)
+TT PS_CLAY    clay load from the pointsource inflow (english tons/year)
+TT PS_QUAL_TN     pointsource inflow load of QUAL TN (lb/year) 
+TT PS_QUAL_TP     pointsource inflow load of QUAL TP (lb/year) 
+TT PS_QUAL_TCd     pointsource inflow load of QUAL TCd (lb/year) 
+TT PS_QUAL_TCu     pointsource inflow load of QUAL TCu (lb/year) 
+TT PS_QUAL_TPb     pointsource inflow load of QUAL TPb (lb/year) 
+TT PS_QUAL_TZn     pointsource inflow load of QUAL TZn (lb/year) 
+TT
+TT     This is header file for the point source summary file pointsource.csv
