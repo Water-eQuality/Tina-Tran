@@ -9,9 +9,11 @@ format:
     toc: true
 author: Tina Tran 
 editor: visual
+warning: false
+messages: false 
 ---
 
-## WMMS Clean Data
+# WMMS Clean Data
 
 **Load Libraries**
 
@@ -23,18 +25,19 @@ library(janitor)
 library(ggplot2)
 library(dplyr)
 library(stringr)
+library(readxl) # Read excel files
 ```
 
-# San Gabriel
+**Overview**
 
-## Jurished: 5120 (New River Park)
+The standard output model was selected for WMMS 2.0. WMMS 2.0 modeled the following parameters for the 20 total jurisheds (10 parks and 10 school recommendations) selected for this project's recommendations.
 
-[**Parameters for Jurished Data:**]{.underline}\
-TT This output file was created at 06:16:55pm on 02/10/2026\
+The data ouput filles include a jurished file, landuse, and stream (Note: some jurisheds have a pointsource output file, but it will not be used for the analysis for this project).
+
+[**Output Parameters for Jurished Data:**]{.underline}\
 TT Time interval: 60 min Output option: day\
-TT Label\
-**TT PREC precipitation (rain + snow) volume (in-acre/day)\
-TT SURO surface outflow volume (in-acre/day)**\
+TT PREC precipitation (rain + snow) volume (in-acre/day)\
+TT SURO surface outflow volume (in-acre/day)\
 TT IFWO interflow outflow volume (in-acre/day)\
 TT AGWO groundwater outflow volume (in-acre/day)\
 TT PERO total outflow rate volume (SURO+IFWO+AGWO) (in-acre/day)\
@@ -42,7 +45,7 @@ TT DEP stream depth (ft)\
 TT AVDEP stream average depth (ft)\
 TT TAU bed shear stress (kg/m\^2)\
 TT RO total rate of outflow from RCHRES (cfs)\
-**TT SOSED sediments load from land (english tons/day)**\
+TT SOSED sediments load from land (english tons/da**y)**\
 TT SSEDOUT1 suspended sediment concentration in outflow from the RCHRES (mg/l)\
 TT SSEDOUT2 suspended sediment concentration in outflow from the RCHRES (mg/l)\
 TT SSEDOUT3 suspended sediment concentration in outflow from the RCHRES (mg/l)\
@@ -53,34 +56,71 @@ TT POQUAL3 total flux of QUAL from the PLS_TCd (lb/day)\
 TT POQUAL4 total flux of QUAL from the PLS_TCu (lb/day)\
 TT POQUAL5 total flux of QUAL from the PLS_TPb (lb/day)\
 TT POQUAL6 total flux of QUAL from the PLS_TZn (lb/day)\
-**TT CONC1 TN dissolved concentration (average) in RCHRES (mg/l)\
-TT CONC2 TP dissolved concentration (average) in RCHRES (mg/l)**\
+TT CONC1 TN dissolved concentration (average) in RCHRES (mg/l)**\
+**TT CONC2 TP dissolved concentration (average) in RCHRES (mg/l)\
 TT CONC3 TCd dissolved concentration (average) in RCHRES (ug/l)\
 TT CONC4 TCu dissolved concentration (average) in RCHRES (ug/l)\
 TT CONC5 TPb dissolved concentration (average) in RCHRES (ug/l)\
 TT CONC6 TZn dissolved concentration (average) in RCHRES (ug/l)
 
-### Loading
+For the purpose of estimating potential fecal indicator bacteria (FIB) loading in the jurished, sediment (SOSED), nitrogen (CONC1 TN), and surface outflow volume (SURO) have been selected as a proxy. WMMS 2.0 uses daily precipitation data from 2006-2018 to estimate these output parameters for 2008-2018.
 
-[**Goal:**]{.underline} Estimate the total average annual loading for sediment, nitrogen, runoff volume (total surface outflow rate \* areas)
+# Park Recommendations
+
+## Dominguez Channel Watershed
+
+### Subbasin: 2113 
+
+Subbasin 2113 was modeled for Banning Park and Museum (Jurished: 211349, City: Los Angeles City, Acres: 21.071).
+
+**Create CSV files**
 
 ```{r}
+# Locate the Dominguez Channel 2113 Folder
+dc_2113_folder <- here("data", "wmms", "park_rec", "dc_2113")
+
+
+# Read the delineation excel sheet and convert to csv
+landuse_deluid_2113 <- read_excel(here(dc_2113_folder,
+                                       "landuse_deluid_2113.xlsx"))
+
+write.csv(landuse_deluid_2113, here(dc_2113_folder,
+                                       "landuse_deluid_2113.csv"),
+          row.names = FALSE)
 
 
 ```
 
-### **Landuse Based on Area for 5120**
+```{r}
+# Read the excel file and convert it into a csv
+juri_dc_2113 <- read_excel(here(dc_2113_folder, 
+                                "juri_dc_2113.xlsx"),
+                           skip = 51)
 
-The delineations used for this model include 96 types to calculate the average area based on landuse from 2008-2018 using input data from 2006-2018. We will group the delineations based on major land use types: road, developed, agriculture, vegetation, and water before plotting the data and analysis.
+write.csv(juri_dc_2113, here(dc_2113_folder,"juri_dc_2113.csv"),
+          row.names = FALSE)
 
-[**Goal**]{.underline}: Understand how much total average area in acres is distributed in this jurished based on landuse type.
+# Double check the way the csv imports
+juri_dc_2113 <- read.csv(here(dc_2113_folder, 
+                              "juri_dc_2113.csv")) |>
+  clean_names() |>
+  rename_with(~ str_remove("^tt_", .x)) |>
+  rename_with(~ str_extract(.x, "^[^_]+"))
+```
 
-```{r, warning = FALSE, message = FALSE}
-# San Gabriel Landuse Data 
-sg_lu_5120_raw <- read.csv(here("data", "wmms", "sg_5120", "landuse_sg_5120.csv"))
+**Landuse**
 
-# San Gabriel Delineation Data for Landuse
-sg_deluid_5120 <- read.csv(here("data", "wmms","sg_5120", "landuse_deluid_5120.csv"))
+```{r}
+# Landuse Data 
+dc_lu_2113_raw <- read.csv(here("data", "wmms", "park_rec", "dc_2113", "landuse_dc_2113.csv"))
+
+# Delineation Data for Landuse
+landuse_deluid_2113 <- read.delim("landuse.out",
+                   header = FALSE,
+                   sep = "\t",
+                   stringsAsFactors = FALSE)
+
+sg_deluid_5120 <- read.csv(here("data", "wmms", "park_rec", "sg_5120", "landuse_deluid_5120.csv"))
 
 
 #Check the data
@@ -110,6 +150,104 @@ nrow(sg_lu_5120_clean)
 nrow(sg_lu_5120_join)
 
 sum(is.na(sg_lu_5120_join[[names(sg_deluid_5120)[3]]]))
+```
+
+**Loading Calculations**
+
+```{r}
+
+```
+
+### Subbasin: 2074
+
+Subbasin 2074 was modeled for Jesse Owens Community Regional Park (Jurished: 207449, City: Los Angeles City, Acres: 19.118).
+
+**Landuse**
+
+```{r}
+
+```
+
+**Loading**
+
+```{r}
+
+```
+
+## Los Angeles River Watershed
+
+### Subbasin: 6387
+
+Subbasin 6387 was modeled for Pecan Playground (Jurished: 638749, City: Los Angeles City, Acres: 4.282).
+
+### Subbasin: 6396
+
+Subbasin 6396 was modeled for State Street Recreation Center (Jurished: 639649, City: Los Angeles City, Acres: 2.617).
+
+### Subbasin: 6480
+
+Subbasin 6480 was modeled for Glassel Park (Jurished: 648049, City: Los Angeles City, Acres: 12.663).
+
+## San Gabriel Watershed
+
+### Subbasin: 5109
+
+Subbasin 5109 was modeled for Rosewood Park (Jurished: 510916, City: Cerritos, Acres: 5.447).
+
+### Subbasin: 5118
+
+Subbasin 5118 was modeled for Byron Zinn Park (Jurished: 511810, City: Bellflower, Acres: 4.827).
+
+### Subbasin: 5120
+
+Subbasin 5120 was modeled for New River Park (Jurished: 512057, City: Norwalk, Acres: 4.840).
+
+**Loading**
+
+[**Goal:**]{.underline} Estimate the total average annual loading for sediment, nitrogen, runoff volume (total surface outflow rate \* areas)
+
+**Landuse Based on Area for 5120**
+
+The delineations used for this model include 96 types to calculate the average area based on landuse from 2008-2018 using input data from 2006-2018. We will group the delineations based on major land use types: road, developed, agriculture, vegetation, and water before plotting the data and analysis.
+
+[**Goal**]{.underline}: Understand how much total average area in acres is distributed in this jurished based on landuse type.
+
+```{r}
+# San Gabriel Landuse Data 
+sg_lu_5120_raw <- read.csv(here("data", "wmms", "park_rec", "sg_5120", "landuse_sg_5120.csv"))
+
+# San Gabriel Delineation Data for Landuse
+sg_deluid_5120 <- read.csv(here("data", "wmms", "park_rec", "sg_5120", "landuse_deluid_5120.csv"))
+
+
+#Check the data
+unique(sg_lu_5120_raw$deluid) #total of 96
+
+# Pivot the long table
+sg_lu_5120_clean <- sg_lu_5120_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1) 
+head(sg_lu_5120_clean)
+
+
+# Check shared names prior to joining 
+names(sg_lu_5120_clean)
+names(sg_deluid_5120)
+intersect(names(sg_lu_5120_clean), names(sg_deluid_5120))
+
+
+# Join Tables 
+sg_lu_5120_join <- sg_lu_5120_clean |>
+  left_join(sg_deluid_5120, by = c("subbasin", "deluid"))
+
+
+# Check number of rows 
+nrow(sg_lu_5120_clean)
+nrow(sg_lu_5120_join)
+
+sum(is.na(sg_lu_5120_join[[names(sg_deluid_5120)[3]]]))
+
 ```
 
 ```{r}
@@ -152,5 +290,66 @@ lu_5120_n <- ggplot(lu_area_5120_sum, aes(x = main_class, y = total_avg_n)) +
        title = "Jurished 5120 Average Nitrogen Flux 2008-2018") +
   theme_minimal()
 print(lu_5120_n)
-
 ```
+
+## Santa Monica Watershed
+
+### Subbasin: 1030
+
+Subbasin 1030 was modeled for Rogers Park (Jurished: 103037, City: Inglewood, Acres: 12.792).
+
+### Subbasin: 1077
+
+Subbasin 1077 modeled for Exposition Park (Jurished: 107749, City: Los Angeles City, Acres: 10.394).
+
+# School Recommendations
+
+## Dominguez Channel Watershed
+
+### Subbasin: 2034
+
+Subbasin 2034 modeled for Gardena High School (Jurished: 203428, City: Gardena).
+
+### Subbasin: 2088
+
+Subbasin 2088 modeled for Narbonne High School (Jurished: 208849, City: Harbor City).
+
+### Subbasin: 2122
+
+Subbasin 2122 modeled for San Pedro High School (Jurished: 212249, City: San Pedro).
+
+## Los Angeles River Watershed
+
+### Subbasin: 6873
+
+Subbasin 6873 modeled for Birmingham Community Charter High School (Jurished: 687349, City: Van Nuys).
+
+### Subbasin: 6682
+
+Subbasin 6682 modeled for Francis Polytechnic High School (Jurished: 668249, City: Sun Valley).
+
+### Subbasin: 6697
+
+Subbasin 6697 modeled for San Fernando High School (Jurished: 669749, City: San Fernando).
+
+### Subbasin: 6925
+
+Subbasin 6925 modeled for Cleveland Charter High School (Jurished: 692549, City: Reseda).
+
+## San Gabriel Watershed
+
+No schools were selected as a recommendation for the San Gabriel watershed.
+
+## Santa Monica Watershed
+
+### Subbasin: 1067
+
+Subbasin 1067 modeled for Crenshaw High School STEMM Magnet (Jurished: 106749, City: Los Angeles).
+
+### Subbasin: 1110
+
+Subbasin 1110 modeled for Kennedy Community of Schools (Jurished: 111049, City: Los Angeles).
+
+### Subbasin: 1061
+
+Subbasin 1061 modeled for Dorsey High School (Jurished: 106149, City: Los Angeles).
