@@ -369,9 +369,9 @@ Subbasin 2113 was modeled for Banning Park and Museum (Jurished: 211349, City: L
 
 #### **Landuse**
 
-#### **Loading** 
+#### **Loading**
 
-### 2074 - Jesse Owens Community Regional Park 
+### 2074 - Jesse Owens Community Regional Park
 
 Subbasin 2074 was modeled for Jesse Owens Community Regional Park (Jurished: 207449, City: Los Angeles City, Acres: 19.118).
 
@@ -417,7 +417,7 @@ Subbasin 6480 was modeled for Glassel Park (Jurished: 648049, City: Los Angeles 
 
 ## San Gabriel Watershed
 
-### 5109 - Rosewood Park 
+### 5109 - Rosewood Park
 
 Subbasin 5109 was modeled for Rosewood Park (Jurished: 510916, City: Cerritos, Acres: 5.447).
 
@@ -457,7 +457,7 @@ Subbasin 5120 was modeled for New River Park (Jurished: 512057, City: Norwalk, A
 
 [**Goal:**]{.underline} Estimate the total average annual loading for sediment, nitrogen, runoff volume (total surface outflow rate \* areas)
 
-#### **Landuse** 
+#### **Landuse**
 
 The delineations used for this model include 96 types to calculate the average area based on landuse from 2008-2018 using input data from 2006-2018. We will group the delineations based on major land use types: road, developed, agriculture, vegetation, and water before plotting the data and analysis.
 
@@ -597,7 +597,7 @@ landuse_deluid_1077 <- read_excel(here(sm_1077_folder,
 
 ## Dominguez Channel Watershed
 
-### 2034 - Gardena High School 
+### 2034 - Gardena High School
 
 Subbasin 2034 modeled for Gardena High School (Jurished: 203428, City: Gardena).
 
@@ -643,7 +643,7 @@ landuse_deluid_2088 <- read_excel(here(dc_2088_folder,
 
 #### **Landuse**
 
-### 2122 - San Pedro High School 
+### 2122 - San Pedro High School
 
 Subbasin 2122 modeled for San Pedro High School (Jurished: 212249, City: San Pedro).
 
@@ -668,7 +668,7 @@ landuse_deluid_2122 <- read_excel(here(dc_2122_folder,
 
 ## Los Angeles River Watershed
 
-### 6873 - Birmingham Community Charter High School 
+### 6873 - Birmingham Community Charter High School
 
 Subbasin 6873 modeled for Birmingham Community Charter High School (Jurished: 687349, City: Van Nuys).
 
@@ -736,7 +736,7 @@ landuse_deluid_6697 <- read_excel(here(lar_6697_folder,
 
 #### Landuse
 
-### 6925 - Cleveland Charter High School 
+### 6925 - Cleveland Charter High School
 
 Subbasin 6925 modeled for Cleveland Charter High School (Jurished: 692549, City: Reseda).
 
@@ -761,7 +761,7 @@ landuse_deluid_6925 <- read_excel(here(lar_6925_folder,
 
 ## Santa Monica Watershed
 
-### 1067 - Crenshaw High School STEMM Magnet 
+### 1067 - Crenshaw High School STEMM Magnet
 
 Subbasin 1067 modeled for Crenshaw High School STEMM Magnet (Jurished: 106749, City: Los Angeles).
 
@@ -784,7 +784,7 @@ write.csv(landuse_deluid_1067, here(sm_1067_folder,
 
 #### Landuse
 
-### 1110 - Kennedy Community of Schools 
+### 1110 - Kennedy Community of Schools
 
 Subbasin 1110 modeled for Kennedy Community of Schools (Jurished: 111049, City: Los Angeles).
 
@@ -807,7 +807,7 @@ landuse_deluid_1110 <- read_excel(here(sm_1110_folder,
 
 #### Landuse
 
-### 1061 - Dorsey High School 
+### 1061 - Dorsey High School
 
 Subbasin 1061 modeled for Dorsey High School (Jurished: 106149, City: Los Angeles).
 
