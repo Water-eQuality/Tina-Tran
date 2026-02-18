@@ -95,6 +95,11 @@ sg_5118_folder <- here("data", "wmms", "park_rec", "sg_5118")
 # Locate the San Gabriel 5120 Folder
 sg_5120_folder <- here("data", "wmms", "park_rec", "sg_5120")
 
+# Locate the Santa Monica 1030 Folder
+sm_1030_folder <- here("data", "wmms", "park_rec", "sm_1030")
+
+# Locate the Santa Monica 1077 Folder
+sm_1077_folder <- here("data", "wmms", "park_rec", "sm_1077")
 ```
 
 **School Recommendations**
@@ -133,68 +138,6 @@ sm_1061_folder <- here("data", "wmms", "school_rec", "sm_1061")
 ```
 
 ## **CSV File from the excel sheets**
-
-Park Recommendations
-
-```{r}
-# Read the delineation excel sheet and convert to csv
-landuse_deluid_2113 <- read_excel(here(dc_2113_folder,
-                                       "landuse_deluid_2113.xlsx"))
-
-#write.csv(landuse_deluid_2113, here(dc_2113_folder,
-#                                       "landuse_deluid_2113.csv"),
-#          row.names = FALSE)
-
-
-# Read the delineation excel sheet and convert to csv
-landuse_deluid_2074 <- read_excel(here(dc_2074_folder,
-                                       "landuse_deluid_2074.xlsx"))
-
-#write.csv(landuse_deluid_2074, here(dc_2074_folder,
-#                                       "landuse_deluid_2074.csv"),
-#          row.names = FALSE)
-
-
-# Read the delineation excel sheet and convert to csv
-landuse_deluid_6387 <- read_excel(here(lar_6387_folder,
-                                       "landuse_deluid_6387.xlsx"))
-
-#write.csv(landuse_deluid_6387, here(lar_6387_folder,
-#                                       "landuse_deluid_6387.csv"),
-#          row.names = FALSE)
-
-# Read the delineation excel sheet and convert to csv
-landuse_deluid_6396 <- read_excel(here(lar_6396_folder,
-                                       "landuse_deluid_6396.xlsx"))
-
-#write.csv(landuse_deluid_6396, here(lar_6396_folder,
-#                                       "landuse_deluid_6396.csv"),
-#          row.names = FALSE)
-
-# Read the delineation excel sheet and convert to csv
-landuse_deluid_6480 <- read_excel(here(lar_6480_folder,
-                                       "landuse_deluid_6480.xlsx"))
-
-#write.csv(landuse_deluid_6480, here(lar_6480_folder,
-#                                       "landuse_deluid_6480.csv"),
-#          row.names = FALSE)
-
-# Read the delineation excel sheet and convert to csv
-landuse_deluid_5109 <- read_excel(here(sg_5109_folder,
-                                       "landuse_deluid_5109.xlsx"))
-
-#write.csv(landuse_deluid_5109, here(sg_5109_folder,
-#                                       "landuse_deluid_5109.csv"),
-#          row.names = FALSE)
-
-# Read the delineation excel sheet and convert to csv
-landuse_deluid_5118 <- read_excel(here(sg_5118_folder,
-                                       "landuse_deluid_5118.xlsx"))
-
-#write.csv(landuse_deluid_5118, here(sg_5118_folder,
-#                                       "landuse_deluid_5118.csv"),
-#          row.names = FALSE)
-```
 
 ## **Process All Jurisheds**
 
@@ -269,86 +212,192 @@ jurisheds <- list(
 #    message("Missing file: ", excel_file)}})
 ```
 
+## **Loading Calcualtions**
+
 **Function**
+
+This code reads and cleans in all of the WMMS 2.0 jurished csv files (n = 20) that had estimated the daily loading parameters for various pollutants and precipitation from 2008-2018 using the standard model output setting. The function also converts units based on the methods from the Los Angeles County Department of Public Works (LACDPW) excel sheet calculations.
+
+To estimate the potential watershed capture, the following information was calculated from the daily 2008-2018 output:
+
+-   **Average**: average daily surface outflow volume (acre-ft/day)
+
+-   **High**: maximum daily surface outflow volume (acre-ft/day)
+
+-   **10-year storm:** daily storm runoff volume corresponding to the 90th percentile of wet-day storm volumes (acre-ft/day)
+
+-   **100-year storm:** daily storm runoff volume corresponding to the 99th percentile of wet-day storm volumes (acre-ft/day)
+
+-   **Total 85th Percentile Runoff Volume:** daily storm runoff volume corresponding to the 85th percentile of a wet-day storm volume (acre-ft/day), used as as a treatment capture threshold.
 
 ```{r}
 # Create a loop to process all jurished files 
 process_juri <- function(folder, file_name){
 
-  # Read & clean 
+  # Read and clean data  
   juri_load <- read.csv(here(folder, file_name)) |>
-    clean_names() |>
-    rename_with(~ str_remove(.x, "^tt_") |> 
-                  str_extract("^[^_]+"),
-                starts_with("tt_"))|>
+    clean_names() |> # make everything lowersnakecase
+    rename_with(~ str_remove(.x, "^tt_") |> # removes "tt_" from names
+                  str_extract("^[^_]+"), # keep the abbreviated name before "_"
+                starts_with("tt_"))|> # renaming only for columns with tt
     select(subbasin, year, month, day, prec,
            suro, ifwo, agwo, pero, dep, avdep, ro,
-           sosed, conc1, conc2) |>
-    rename(
-      depth = dep,
-      tn_mg_l = conc1,
-      tp_mg_l = conc2) |>
+           sosed, conc1, conc2) |> # keep these columns 
+    rename(depth = dep, # depth of the stream (ft)
+      tn_mg_l = conc1, # conc1 is total nitrogen (mg/L)
+      tp_mg_l = conc2) |> # conc2 is total phosphorous (mg/L)
     mutate(
       date = as.Date(paste(year, month, day, sep="-")),
-      suro_ft_acre_day = suro / 12,
-      pero_ft_acre_day = pero / 12,
-      tn_lb_ac_ft = tn_mg_l * 2.71936,
-      tp_lb_ac_ft = tp_mg_l * 2.71936,
-      storm_volume_ac_ft_day = if_else(prec > 0, suro_ft_acre_day, 0))
+      suro_ft_acre_day = suro / 12, # convert surface outflow volume to ft-acre/day from in-acre/day
+      pero_ft_acre_day = pero / 12, # convert total outflow rate volume to ft-acre/day from in-acre/day
+      tn_lb_ac_ft = tn_mg_l * 2.71936, # convert total nitrogen to ac-lb/ft
+      tp_lb_ac_ft = tp_mg_l * 2.71936, # convert total phosphorous to ac-lb/ft
+      
+      # Add new column for storm days and storm volume 
+      storm_volume_ac_ft_day = if_else(prec > 0, #dry days = 0
+                                       suro_ft_acre_day, 0),
+      
+      # Total Nitrogen Loading 
+      tn_load_lb_day = tn_lb_ac_ft * suro_ft_acre_day)  
+  
+  
 
+  
+# Calculate Watershed Capture Analysis Information 
+storm_vals <- juri_load$storm_volume_ac_ft_day[juri_load$prec > 0]
+
+  # Create the 10-year storm 
+  storm_90th <- quantile(storm_vals, .90, na.rm=TRUE)
+  
+  # Create the 100-yr storm 
+  storm_99th <- quantile(storm_vals, .99, na.rm=TRUE)
+  
   # Create the Runoff 85th Percentile 
-  runoff_85th <- quantile(
-    juri_load$storm_volume_ac_ft_day[juri_load$prec > 0],
-    0.85,
-    type = 7)
+  runoff_85th <- quantile(storm_vals, .85, na.rm=TRUE)
+  
+  
+  
+# Watershed capture Analysis Table
+  capture_summary <- juri_load |>
+    summarise(
+      avg_suro_acft_day = mean(suro_ft_acre_day, na.rm = TRUE),
+      max_suro_acft_day = max(suro_ft_acre_day, na.rm = TRUE),
 
-  # Total Nitrogen Reduction Calculations
+      # Only storms (wet days)
+      avg_storm_vol_acft_day = mean(storm_vals, na.rm = TRUE),
+      max_storm_vol_acft_day = max(storm_vals, na.rm = TRUE),
+
+      perc_85_acft_day = runoff_85th,
+      perc_90_acft_day = storm_90th,
+      perc_99_acft_day = storm_99th)
+
+
+# Table - Estimate Loading Per Day Per Year
+loading_table <- juri_load |>
+  group_by(year) |>
+  
+            # Dissolved Nitrogen Loading 
+  summarise(total_tn_lb_yr = sum(tn_load_lb_day, na.rm = TRUE),
+            avg_tn_lb_day = mean(tn_load_lb_day, na.rm = TRUE), 
+            
+            # Sediment loading
+            total_sed_lb_yr = sum(sosed, na.rm = TRUE),
+            avg_sed_lb_day = mean(sosed, na.rm = TRUE),
+            
+            # Surface Outflow Volume
+            total_suro_acft_yr = sum(suro_ft_acre_day, 
+                                      na.rm = TRUE),
+            avg_suro_acft_day = mean(suro_ft_acre_day, 
+                                     na.rm = TRUE),
+            .groups = "drop")
+                              
+
+  
+# Calulcate Loading Reductions Per Day
   juri_load <- juri_load |>
+    
     mutate(
-      tn_reduce_lb_day = if_else(
-        suro_ft_acre_day > runoff_85th,
-        tn_lb_ac_ft * runoff_85th,
-        tn_lb_ac_ft * suro_ft_acre_day))
+      
+      # Calculate the potential capture fraction
+      capture_frac = if_else(suro_ft_acre_day > 0,
+                             pmin(runoff_85th / suro_ft_acre_day, 
+                                  1), 0),
+      tn_reduce_lb_day = tn_load_lb_day * capture_frac,
+      sed_reduce_tons_day = sosed * capture_frac)
 
-  # Annual wet day stats
-  wet_day_calc <- juri_load |>
-    filter(storm_volume_ac_ft_day > 0) |>
+  # Table - Wet Days Reduction Calculations Per Day Per Year
+  reduction_table <- juri_load |>
+    filter(prec > 0) |>
     group_by(year) |>
     summarise(
-      total_tn_wet_day = sum(tn_reduce_lb_day, na.rm=TRUE),
-      avg_tn_per_wet_day = mean(tn_reduce_lb_day, na.rm=TRUE),
+      total_tn_reduce_per_wet_yr = sum(tn_reduce_lb_day,  # total nitrogen reeduction per wet day per year (lb/year)
+                             na.rm=TRUE), 
+      avg_tn_reduce_per_wet_day = mean(tn_reduce_lb_day, 
+                                na.rm=TRUE),
+      
+      total_sed_reduce_per_wet_yr = sum(sed_reduce_tons_day , # total sediment per wet day
+                              na.rm=TRUE), 
+      avg_sed_reduce_per_wet_day = mean(sed_reduce_tons_day, # average sediment per wet day
+                                 na.rm=TRUE), 
+      total_suro_wet_yr = sum(suro_ft_acre_day, na.rm=TRUE), # surface runoff volume
+      avg_suro_wet_day = mean(suro_ft_acre_day, na.rm=TRUE),
 
-      total_sed_wet_day = sum(sosed, na.rm=TRUE),
-      avg_sed_per_wet_day = mean(sosed, na.rm=TRUE),
-
-      total_suro = sum(suro_ft_acre_day, na.rm=TRUE),
-      avg_suro = mean(suro_ft_acre_day, na.rm=TRUE),
-
-      total_pero = sum(pero_ft_acre_day, na.rm=TRUE),
+      total_pero = sum(pero_ft_acre_day, na.rm=TRUE), # total outflow
       avg_pero = mean(pero_ft_acre_day, na.rm=TRUE),
 
       wet_days = n(), # count number of wet days 
       .groups="drop")
 
-  # 10-year averages (menas of means)
-  avg10 <- wet_day_calc |>
-    summarise(
-      total_tn_10yr = mean(total_tn_wet_day),
-      avg_tn_per_wet_day_10yr = mean(avg_tn_per_wet_day),
-      total_sed_10yr = mean(total_sed_wet_day),
-      avg_sed_per_wet_day_10yr = mean(avg_sed_per_wet_day),
-      total_suro_10yr = mean(total_suro),
-      avg_suro_10yr = mean(avg_suro),
-      total_pero_10yr = mean(total_pero),
-      avg_pero_10yr = mean(avg_pero),
-      wet_days_10yr = mean(wet_days)
-    )
+  
+# Table - Percent Reduction based on 85th Percentile Capture 
+  percent_reduction_table <- loading_table |>
+    left_join(reduction_table, by = "year") |>
+    mutate(
+      
+      # Calculate Nitrogen Percent Reduction
+      pct_tn_reduction = (total_tn_reduce_per_wet_yr / total_tn_lb_yr)*100,
+      
+      # Calculate Sediment Percent Reduction
+      pct_sed_reduction = (total_sed_reduce_per_wet_yr / total_sed_lb_yr)*100,
+      
+      # Surface runoff capture percentage (volume)
+      pct_volume_capture = (total_suro_wet_yr / total_suro_acft_yr) * 100)
+  
+  
+  
+  # Table - 10-year averages (menas of means)
+annual_avg_table <- percent_reduction_table |>
+  summarise(
+    total_tn_10yr = mean(total_tn_reduce_per_wet_yr),
+    avg_tn_per_wet_day_10yr = mean(avg_tn_reduce_per_wet_day),
+
+    total_sed_10yr = mean(total_sed_reduce_per_wet_yr),
+    avg_sed_per_wet_day_10yr = mean(avg_sed_reduce_per_wet_day),
+
+    total_suro_10yr = mean(total_suro_wet_yr),
+    avg_suro_10yr = mean(avg_suro_wet_day),
+
+    total_pero_10yr = mean(total_pero),
+    avg_pero_10yr = mean(avg_pero),
+    
+    avg_pct_tn_reduction = mean(pct_tn_reduction),
+    avg_pct_sed_reduction = mean(pct_sed_reduction),
+    avg_pct_volume_capture = mean(pct_volume_capture),
+    wet_days_10yr = mean(wet_days))
+
 
   return(list(
-    yearly = wet_day_calc,
-    avg10 = avg10))
+    watershed_capture = capture_summary,
+    loading = loading_table,
+    reduction = reduction_table,
+    percent = percent_reduction_table,
+    annual = annual_avg_table)) 
 }
 ```
+
+**Extract the Jurished Data**
+
+This code extracts the results from the looped function that calcualted the values from each jurished and makes it into a table.
 
 ```{r}
 # Loop the function for all jurished data 
@@ -357,6 +406,17 @@ avg_10_juri <- imap(jurisheds, ~process_juri(.x$folder, .x$file))
 # Extract the results from the loop into a table
 avg10_all <- imap_dfr(avg_10_juri, function(x, name){
   x$avg10 |> mutate(jurished = name)})
+```
+
+**Create A Table for all 20 Jurisheds**
+
+```{r}
+results <- imap(jurisheds, ~process_juri(.x$folder, .x$file))
+
+loading_all <- imap_dfr(results, ~mutate(.x$loading, jurished=.y))
+reduction_all <- imap_dfr(results, ~mutate(.x$reduction, jurished=.y))
+annual_reduction_all <- imap_dfr(results, ~mutate(.x$annual, jurished=.y))
+
 ```
 
 # Park Recommendations
@@ -369,6 +429,94 @@ Subbasin 2113 was modeled for Banning Park and Museum (Jurished: 211349, City: L
 
 #### **Landuse**
 
+```{r}
+# Landuse Data 
+dc_lu_2113_raw <- read.csv(here(dc_2113_folder, "landuse_dc_2113.csv"))
+
+
+# Read the delineation excel sheet and convert to csv
+landuse_deluid_2113 <- read_excel(here(dc_2113_folder,
+                                       "landuse_deluid_2113.xlsx"))
+
+#write.csv(landuse_deluid_2113, here(dc_2113_folder,
+#                                       "landuse_deluid_2113.csv"),
+#          row.names = FALSE)
+
+
+#Check the data
+unique(dc_lu_2113_raw$deluid) #total of 96
+
+# Pivot the long table
+dc_lu_2113_clean <- dc_lu_2113_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1) 
+head(dc_lu_2113_clean) |>
+  clean_names()
+
+
+# Check shared names prior to joining 
+names(dc_lu_2113_clean)
+names(landuse_deluid_2113)
+intersect(names(dc_lu_2113_clean), names(landuse_deluid_2113))
+
+
+# Join Tables 
+dc_lu_2113_join <- dc_lu_2113_clean |>
+  left_join(landuse_deluid_2113, by = c("subbasin", "deluid")) |>
+  clean_names()
+
+
+# Check number of rows 
+nrow(dc_lu_2113_clean)
+nrow(dc_lu_2113_join)
+
+sum(is.na(dc_lu_2113_join[[names(landuse_deluid_2113)[3]]]))
+
+
+# Categorize the delineations into main classes for easier data manipulation
+dc_plot_2113 <- dc_lu_2113_join |>
+  mutate(main_class = str_extract(deluname, "^[^_-]+")) |>
+  rename(Vegetation = Veg,
+         Developed = Dev)
+ # summarise(total_volume = area_ac*
+```
+
+```{r}
+# Summarize the data
+lu_area_2113_sum <- dc_plot_2113 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+# Landuse Type Distribution Plot 
+lu_2113_plot <- ggplot(lu_area_2113_sum, aes(x = main_class, y = total_area)) +
+  geom_col() +
+  labs(x = "Land Use Type", y = "Total Average Area (acres)", 
+       title = "Jurished 2113 Landuse Distribution") +
+  theme_minimal()
+
+print(lu_2113_plot)
+
+# Sediment Loading Plot
+lu_2113_sed <- ggplot(lu_area_2113_sum, aes(x = main_class, y = total_avg_sed)) +
+  geom_col() +
+  labs(x = "Land Use Type", y = "Total Average Sediment (tons/year)", 
+       title = "Jurished 2113 Average Sediment Loading 2008-2018") +
+  theme_minimal()
+print(lu_2113_sed)
+
+
+# Nitrogen FLux Plot
+lu_2113_n <- ggplot(lu_area_2113_sum, aes(x = main_class, y = total_avg_n)) +
+  geom_col() +
+  labs(x = "Land Use Type", y = "Total Average Nitrogen Flux (lbs/year)", 
+       title = "Jurished 2113 Average Nitrogen Flux 2008-2018") +
+  theme_minimal()
+print(lu_2113_n)
+```
+
 #### **Loading**
 
 ### 2074 - Jesse Owens Community Regional Park
@@ -378,7 +526,13 @@ Subbasin 2074 was modeled for Jesse Owens Community Regional Park (Jurished: 207
 #### **Landuse**
 
 ```{r}
+# Read the delineation excel sheet and convert to csv
+landuse_deluid_2074 <- read_excel(here(dc_2074_folder,
+                                       "landuse_deluid_2074.xlsx"))
 
+#write.csv(landuse_deluid_2074, here(dc_2074_folder,
+#                                       "landuse_deluid_2074.csv"),
+#          row.names = FALSE)
 ```
 
 #### **Loading**
@@ -391,6 +545,16 @@ Subbasin 6387 was modeled for Pecan Playground (Jurished: 638749, City: Los Ange
 
 #### Landuse
 
+```{r}
+# Read the delineation excel sheet and convert to csv
+landuse_deluid_6387 <- read_excel(here(lar_6387_folder,
+                                       "landuse_deluid_6387.xlsx"))
+
+#write.csv(landuse_deluid_6387, here(lar_6387_folder,
+#                                       "landuse_deluid_6387.csv"),
+#          row.names = FALSE)
+```
+
 #### Loading
 
 ### 6396 - State Street Recreation Center
@@ -399,19 +563,33 @@ Subbasin 6396 was modeled for State Street Recreation Center (Jurished: 639649, 
 
 #### **Landuse**
 
+```{r}
+# Read the delineation excel sheet and convert to csv
+landuse_deluid_6396 <- read_excel(here(lar_6396_folder,
+                                       "landuse_deluid_6396.xlsx"))
+
+#write.csv(landuse_deluid_6396, here(lar_6396_folder,
+#                                       "landuse_deluid_6396.csv"),
+#          row.names = FALSE)
+```
+
 #### **Loading**
 
 ### 6480 - Glassel Park
 
 Subbasin 6480 was modeled for Glassel Park (Jurished: 648049, City: Los Angeles City, Acres: 12.663).
 
-**Create CSV Files**
+#### Landuse
 
 ```{r}
+# Read the delineation excel sheet and convert to csv
+landuse_deluid_6480 <- read_excel(here(lar_6480_folder,
+                                       "landuse_deluid_6480.xlsx"))
 
+#write.csv(landuse_deluid_6480, here(lar_6480_folder,
+#                                       "landuse_deluid_6480.csv"),
+#          row.names = FALSE)
 ```
-
-#### Landuse
 
 #### Loading
 
@@ -424,7 +602,13 @@ Subbasin 5109 was modeled for Rosewood Park (Jurished: 510916, City: Cerritos, A
 **Create CSV Files**
 
 ```{r}
+# Read the delineation excel sheet and convert to csv
+landuse_deluid_5109 <- read_excel(here(sg_5109_folder,
+                                       "landuse_deluid_5109.xlsx"))
 
+#write.csv(landuse_deluid_5109, here(sg_5109_folder,
+#                                       "landuse_deluid_5109.csv"),
+#          row.names = FALSE)
 ```
 
 #### Landuse
@@ -435,23 +619,23 @@ Subbasin 5109 was modeled for Rosewood Park (Jurished: 510916, City: Cerritos, A
 
 Subbasin 5118 was modeled for Byron Zinn Park (Jurished: 511810, City: Bellflower, Acres: 4.827).
 
-**Create CSV File**
+#### Landuse
 
 ```{r}
+# Read the delineation excel sheet and convert to csv
+landuse_deluid_5118 <- read_excel(here(sg_5118_folder,
+                                       "landuse_deluid_5118.xlsx"))
 
+#write.csv(landuse_deluid_5118, here(sg_5118_folder,
+#                                       "landuse_deluid_5118.csv"),
+#          row.names = FALSE)
 ```
-
-#### Landuse
 
 #### Loading
 
 ### 5120 - New River Park
 
 Subbasin 5120 was modeled for New River Park (Jurished: 512057, City: Norwalk, Acres: 4.840).
-
-```{r}
-
-```
 
 #### **Loading**
 
@@ -604,9 +788,6 @@ Subbasin 2034 modeled for Gardena High School (Jurished: 203428, City: Gardena).
 **Create CSV File**
 
 ```{r}
-
-
-
 # Read the delineation excel sheet and convert to csv
 landuse_deluid_2034 <- read_excel(here(dc_2034_folder,
                                        "landuse_deluid_2034.xlsx"))
@@ -627,9 +808,6 @@ Subbasin 2088 modeled for Narbonne High School (Jurished: 208849, City: Harbor C
 **Create CSV Files**
 
 ```{r}
-
-
-
 # Read the delineation excel sheet and convert to csv
 landuse_deluid_2088 <- read_excel(here(dc_2088_folder,
                                        "landuse_deluid_2088.xlsx"))
@@ -650,9 +828,6 @@ Subbasin 2122 modeled for San Pedro High School (Jurished: 212249, City: San Ped
 **Create CSV Files**
 
 ```{r}
-
-
-
 # Read the delineation excel sheet and convert to csv
 landuse_deluid_2122 <- read_excel(here(dc_2122_folder,
                                        "landuse_deluid_2122.xlsx"))
@@ -675,8 +850,6 @@ Subbasin 6873 modeled for Birmingham Community Charter High School (Jurished: 68
 **Create CSV File**
 
 ```{r}
-
-
 # Read the delineation excel sheet and convert to csv
 landuse_deluid_6873 <- read_excel(here(lar_6873_folder,
                                        "landuse_deluid_6873.xlsx"))
@@ -697,9 +870,6 @@ Subbasin 6682 modeled for Francis Polytechnic High School (Jurished: 668249, Cit
 **Create CSV File**
 
 ```{r}
-
-
-
 # Read the delineation excel sheet and convert to csv
 landuse_deluid_6682 <- read_excel(here(lar_6682_folder,
                                        "landuse_deluid_6682.xlsx"))
@@ -720,9 +890,6 @@ Subbasin 6697 modeled for San Fernando High School (Jurished: 669749, City: San 
 **Create CSV File**
 
 ```{r}
-
-
-
 # Read the delineation excel sheet and convert to csv
 landuse_deluid_6697 <- read_excel(here(lar_6697_folder,
                                        "landuse_deluid_6697.xlsx"))
@@ -743,9 +910,6 @@ Subbasin 6925 modeled for Cleveland Charter High School (Jurished: 692549, City:
 **Create CSV File**
 
 ```{r}
-
-
-
 # Read the delineation excel sheet and convert to csv
 landuse_deluid_6925 <- read_excel(here(lar_6925_folder,
                                        "landuse_deluid_6925.xlsx"))
@@ -768,9 +932,6 @@ Subbasin 1067 modeled for Crenshaw High School STEMM Magnet (Jurished: 106749, C
 **Create CSV File**
 
 ```{r}
-
-
-
 # Read the delineation excel sheet and convert to csv
 landuse_deluid_1067 <- read_excel(here(sm_1067_folder,
                                        "landuse_deluid_1067.xlsx"))
@@ -791,9 +952,6 @@ Subbasin 1110 modeled for Kennedy Community of Schools (Jurished: 111049, City: 
 **Create CSV File**
 
 ```{r}
-
-
-
 # Read the delineation excel sheet and convert to csv
 landuse_deluid_1110 <- read_excel(here(sm_1110_folder,
                                        "landuse_deluid_1110.xlsx"))
@@ -814,9 +972,6 @@ Subbasin 1061 modeled for Dorsey High School (Jurished: 106149, City: Los Angele
 **Create CSV File**
 
 ```{r}
-
-
-
 # Read the delineation excel sheet and convert to csv
 landuse_deluid_1061 <- read_excel(here(sm_1061_folder,
                                        "landuse_deluid_1061.xlsx"))
