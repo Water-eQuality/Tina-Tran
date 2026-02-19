@@ -22,6 +22,7 @@ messages: false
 library(tidyverse)
 library(here)
 library(janitor)
+library(patchwork)
 library(ggplot2)
 library(dplyr)
 library(stringr)
@@ -142,6 +143,29 @@ sm_1061_folder <- here("data", "wmms", "school_rec", "sm_1061")
 ## **Process All Jurisheds**
 
 ```{r}
+# Convert all existing jurished excel files into a csv and add it to the existing folder
+
+#walk(jurisheds, function(j){
+
+#  excel_file <- sub("\\.csv$", ".xlsx", j$file)
+#  excel_path <- here(j$folder, excel_file)
+
+#  if(file.exists(excel_path)){
+
+#    message("Converting: ", excel_file)
+
+#    juri_xl <- read_excel(excel_path, skip = 51)
+
+#    write.csv(juri_xl,
+#      here(j$folder, j$file),
+#      row.names = FALSE)
+
+#  } else {
+
+#    message("Missing file: ", excel_file)}})
+```
+
+```{r}
 # Create a Jurished List 
 jurisheds <- list(
   # Park Recommendations
@@ -189,36 +213,15 @@ jurisheds <- list(
                   file="juri_sm_1061.csv"))
 ```
 
-```{r}
-# Convert all existing jurished excel files into a csv and add it to the existing folder
-
-#walk(jurisheds, function(j){
-
-#  excel_file <- sub("\\.csv$", ".xlsx", j$file)
-#  excel_path <- here(j$folder, excel_file)
-
-#  if(file.exists(excel_path)){
-
-#    message("Converting: ", excel_file)
-
-#    juri_xl <- read_excel(excel_path, skip = 51)
-
-#    write.csv(juri_xl,
-#      here(j$folder, j$file),
-#      row.names = FALSE)
-
-#  } else {
-
-#    message("Missing file: ", excel_file)}})
-```
-
 ## **Loading Calcualtions**
 
 **Function**
 
 This code reads and cleans in all of the WMMS 2.0 jurished csv files (n = 20) that had estimated the daily loading parameters for various pollutants and precipitation from 2008-2018 using the standard model output setting. The function also converts units based on the methods from the Los Angeles County Department of Public Works (LACDPW) excel sheet calculations.
 
-To estimate the potential watershed capture, the following information was calculated from the daily 2008-2018 output:
+The code creates 5 data tables using the daily 2008-2018 output from WMMS 2.0:
+
+1.  **Watershed Capture Analysis Table**
 
 -   **Average**: average daily surface outflow volume (acre-ft/day)
 
@@ -229,6 +232,12 @@ To estimate the potential watershed capture, the following information was calcu
 -   **100-year storm:** daily storm runoff volume corresponding to the 99th percentile of wet-day storm volumes (acre-ft/day)
 
 -   **Total 85th Percentile Runoff Volume:** daily storm runoff volume corresponding to the 85th percentile of a wet-day storm volume (acre-ft/day), used as as a treatment capture threshold.
+
+2.  **Loading Table**
+
+2.  **Reduction Table**
+3.  **Percent Reduction Table**
+4.  **Annual Average Table**
 
 ```{r}
 # Create a loop to process all jurished files 
@@ -292,23 +301,29 @@ storm_vals <- juri_load$storm_volume_ac_ft_day[juri_load$prec > 0]
       perc_99_acft_day = storm_99th)
 
 
-# Table - Estimate Loading Per Day Per Year
+# Table - Estimate Loading Per Day Per Year For Dry + Wet Days
 loading_table <- juri_load |>
   group_by(year) |>
   
             # Dissolved Nitrogen Loading 
   summarise(total_tn_lb_yr = sum(tn_load_lb_day, na.rm = TRUE),
             avg_tn_lb_day = mean(tn_load_lb_day, na.rm = TRUE), 
+            avg_tn_wet_lb_day = mean(tn_load_lb_day[prec > 0], 
+                                     na.rm = TRUE), 
             
             # Sediment loading
             total_sed_lb_yr = sum(sosed, na.rm = TRUE),
             avg_sed_lb_day = mean(sosed, na.rm = TRUE),
+            avg_sed_wet_lb_day = mean(sosed[prec > 0],
+                                      na.rm = TRUE),
             
             # Surface Outflow Volume
             total_suro_acft_yr = sum(suro_ft_acre_day, 
                                       na.rm = TRUE),
             avg_suro_acft_day = mean(suro_ft_acre_day, 
                                      na.rm = TRUE),
+            avg_suro_wet_acft_day = mean(suro_ft_acre_day[prec > 0],
+                                      na.rm = TRUE),
             .groups = "drop")
                               
 
@@ -323,25 +338,36 @@ loading_table <- juri_load |>
                              pmin(runoff_85th / suro_ft_acre_day, 
                                   1), 0),
       tn_reduce_lb_day = tn_load_lb_day * capture_frac,
-      sed_reduce_tons_day = sosed * capture_frac)
+      sed_reduce_tons_day = sosed * capture_frac,
+      suro_reduce_acft_day = suro_ft_acre_day * capture_frac)
+  
+  
 
   # Table - Wet Days Reduction Calculations Per Day Per Year
   reduction_table <- juri_load |>
     filter(prec > 0) |>
     group_by(year) |>
     summarise(
+      
+      # Nitrogen
       total_tn_reduce_per_wet_yr = sum(tn_reduce_lb_day,  # total nitrogen reeduction per wet day per year (lb/year)
                              na.rm=TRUE), 
       avg_tn_reduce_per_wet_day = mean(tn_reduce_lb_day, 
                                 na.rm=TRUE),
       
+      # Sediment Reduction
       total_sed_reduce_per_wet_yr = sum(sed_reduce_tons_day , # total sediment per wet day
                               na.rm=TRUE), 
       avg_sed_reduce_per_wet_day = mean(sed_reduce_tons_day, # average sediment per wet day
                                  na.rm=TRUE), 
-      total_suro_wet_yr = sum(suro_ft_acre_day, na.rm=TRUE), # surface runoff volume
-      avg_suro_wet_day = mean(suro_ft_acre_day, na.rm=TRUE),
+      
+      # Surface Runoff Volume Reduction
+      total_suro_reduce_wet_yr = sum(suro_reduce_acft_day, 
+                                     na.rm=TRUE),
+      avg_suro_reduce_wet_day = mean(suro_reduce_acft_day, 
+                                     na.rm=TRUE),
 
+      # Total Outflow Volume
       total_pero = sum(pero_ft_acre_day, na.rm=TRUE), # total outflow
       avg_pero = mean(pero_ft_acre_day, na.rm=TRUE),
 
@@ -349,41 +375,61 @@ loading_table <- juri_load |>
       .groups="drop")
 
   
-# Table - Percent Reduction based on 85th Percentile Capture 
+  
+# Table - Percent Reduction based on 85th Percentile Capture For Wet Days
   percent_reduction_table <- loading_table |>
     left_join(reduction_table, by = "year") |>
     mutate(
       
-      # Calculate Nitrogen Percent Reduction
-      pct_tn_reduction = (total_tn_reduce_per_wet_yr / total_tn_lb_yr)*100,
+      # Calculate Nitrogen Percent Reduction Per Year 
+      pct_tn_reduction_yr = ((total_tn_reduce_per_wet_yr / total_tn_lb_yr)* 100),
       
-      # Calculate Sediment Percent Reduction
-      pct_sed_reduction = (total_sed_reduce_per_wet_yr / total_sed_lb_yr)*100,
+      # Calculate N Percent Reduction Per Wet Day 
+      pct_tn_reduction_day = ((avg_tn_reduce_per_wet_day/avg_tn_wet_lb_day)*100),
       
-      # Surface runoff capture percentage (volume)
-      pct_volume_capture = (total_suro_wet_yr / total_suro_acft_yr) * 100)
+      
+      # Calculate Sediment Percent Reduction Per Year 
+      pct_sed_reduction_yr = ((total_sed_reduce_per_wet_yr / total_sed_lb_yr)*100),
+      
+      # Calculate Sediment Percent Reduction Per Day 
+      pct_sed_reduction_day = ((avg_sed_reduce_per_wet_day/avg_sed_wet_lb_day) * 100),
+      
+      
+      # Surface runoff capture percentage Per Year (volume)
+      pct_volume_capture_yr = ((total_suro_reduce_wet_yr / total_suro_acft_yr) * 100),
+      pct_volume_capture_day = ((avg_suro_reduce_wet_day / avg_suro_wet_acft_day) * 100))
+
   
   
   
-  # Table - 10-year averages (menas of means)
+  # Table - 10-year averages (menas of means) of Reduction & %
 annual_avg_table <- percent_reduction_table |>
   summarise(
+  
+  # Nitrogen 
     total_tn_10yr = mean(total_tn_reduce_per_wet_yr),
     avg_tn_per_wet_day_10yr = mean(avg_tn_reduce_per_wet_day),
+    pct_tn_reduction = mean(pct_tn_reduction_day, na.rm = TRUE),
 
+
+  # Sediment 
     total_sed_10yr = mean(total_sed_reduce_per_wet_yr),
     avg_sed_per_wet_day_10yr = mean(avg_sed_reduce_per_wet_day),
+    pct_sed_reduction = mean(pct_sed_reduction_day, na.rm = TRUE),
 
-    total_suro_10yr = mean(total_suro_wet_yr),
-    avg_suro_10yr = mean(avg_suro_wet_day),
 
+  # Surface Outflow Volume 
+    total_suro_10yr = mean(total_suro_reduce_wet_yr),
+    avg_suro_10yr = mean(avg_suro_reduce_wet_day),
+    pct_volume_capture = mean(pct_volume_capture_day, na.rm = TRUE),
+
+
+  # Total Outflow Volume 
     total_pero_10yr = mean(total_pero),
     avg_pero_10yr = mean(avg_pero),
-    
-    avg_pct_tn_reduction = mean(pct_tn_reduction),
-    avg_pct_sed_reduction = mean(pct_sed_reduction),
-    avg_pct_volume_capture = mean(pct_volume_capture),
-    wet_days_10yr = mean(wet_days))
+  
+  # Total Wet Days simulated that Year
+    wet_days_10yr = sum(wet_days))
 
 
   return(list(
@@ -393,6 +439,8 @@ annual_avg_table <- percent_reduction_table |>
     percent = percent_reduction_table,
     annual = annual_avg_table)) 
 }
+
+
 ```
 
 **Extract the Jurished Data**
@@ -400,26 +448,175 @@ annual_avg_table <- percent_reduction_table |>
 This code extracts the results from the looped function that calcualted the values from each jurished and makes it into a table.
 
 ```{r}
-# Loop the function for all jurished data 
-avg_10_juri <- imap(jurisheds, ~process_juri(.x$folder, .x$file))
+# Store all the results 
+all_results <- purrr::imap(jurisheds, function(j, name) {
+  process_juri(j$folder, j$file)})
 
-# Extract the results from the loop into a table
-avg10_all <- imap_dfr(avg_10_juri, function(x, name){
-  x$avg10 |> mutate(jurished = name)})
+
+# Print the 5 tables for each jurished 
+purrr::walk2(all_results, names(all_results), function(result, name) {
+  
+  cat("\n====================================\n")
+  cat("Jurished:", name, "\n")
+  cat("====================================\n\n")
+  
+  cat("Watershed Capture\n")
+  print(result$watershed_capture)
+  
+  cat("\nLoading Table\n")
+  print(result$loading)
+  
+  cat("\nReduction Table\n")
+  print(result$reduction)
+  
+  cat("\nPercent Reduction Table\n")
+  print(result$percent)
+  
+  cat("\nAnnual 10-Year Summary\n")
+  print(result$annual)
+})
 ```
 
-**Create A Table for all 20 Jurisheds**
+**Create a Data Table Combining all 20 Jurisheds together**
+
+This code will create 5 data tables, representing the following information:
+
+-   Watershed Capture Analysis Summary
+
+-   Loading Table
+
+-   Percent Reduction Table
+
+-   Reduction Table
+
+-   Annual Average Reduction
 
 ```{r}
-results <- imap(jurisheds, ~process_juri(.x$folder, .x$file))
+# Create Cumulative Watershed Capture Analysis 
+watershed_all <- purrr::map2_dfr(
+  all_results,
+  names(all_results),
+  ~ dplyr::mutate(
+      .x$watershed_capture,
+      jurished = .y,
+      jurished_id = as.numeric(stringr::str_extract(.y, "\\d+"))))
 
-loading_all <- imap_dfr(results, ~mutate(.x$loading, jurished=.y))
-reduction_all <- imap_dfr(results, ~mutate(.x$reduction, jurished=.y))
-annual_reduction_all <- imap_dfr(results, ~mutate(.x$annual, jurished=.y))
+table(watershed_all$jurished_id) # check n jurisheds
 
+# Create Cumulative Loading Table
+loading_all <- purrr::map2_dfr(
+  all_results,
+  names(all_results),
+  ~ dplyr::mutate(
+      .x$loading,
+      jurished = .y,
+      jurished_id = as.numeric(stringr::str_extract(.y, "\\d+"))))
+
+table(loading_all$jurished_id) # check n jurisheds
+
+
+# Create Cumulative Reduction Table
+reduction_all <- purrr::map2_dfr(
+  all_results,
+  names(all_results),
+  ~ dplyr::mutate(
+      .x$reduction,
+      jurished = .y,
+      jurished_id = as.numeric(stringr::str_extract(.y, "\\d+"))))
+
+table(reduction_all$jurished_id) # check n jurisheds
+
+
+# Create Cumulative Percentage Reduction Table
+percent_all <- purrr::map2_dfr(
+  all_results,
+  names(all_results),
+  ~ dplyr::mutate(
+      .x$percent,
+      jurished = .y,
+      jurished_id = as.numeric(stringr::str_extract(.y, "\\d+"))))
+
+
+table(percent_all$jurished_id) # check n jurisheds
+
+# Create Cumulative 10-Year Summary Table 
+annual_all <- purrr::map2_dfr(
+  all_results,
+  names(all_results),
+  ~ dplyr::mutate(
+      .x$annual,
+      jurished = .y,
+      jurished_id = as.numeric(stringr::str_extract(.y, "\\d+"))))
+
+table(annual_all$jurished_id) # check n jurisheds
+
+
+
+# Write the CSV Files
+#Folder location for analysis
+wmms_analysis_folder <- here("data", "wmms", "analysis")
+
+
+
+#write.csv(watershed_all, 
+#          here(wmms_analysis_folder, "watershed_all.csv"),
+#          row.names = FALSE)
+                                    
+#write.csv(loading_all, 
+#          here(wmms_analysis_folder, "loading_all.csv"),
+#          row.names = FALSE)
+
+#write.csv(reduction_all, 
+#          here(wmms_analysis_folder, "reduction_all.csv"), 
+#          row.names = FALSE)
+
+#write.csv(percent_all, 
+#          here(wmms_analysis_folder, "percent_reduction_all.csv"),
+#          row.names = FALSE)
+
+#write.csv(annual_all, 
+#          here(wmms_analysis_folder, "annual_summary_all.csv"), 
+#          row.names = FALSE)
 ```
 
 # Park Recommendations
+
+```{r}
+landuse_colors <- c(
+  "Residential" = "#F4A3A3",
+  "Commercial" = "#E31A1C",
+  "Industrial" = "#A50F15",
+  "Pervious(Developed)" = "#FB9A99",
+  "Other Developed" = "#D6604D",
+  "Road" = "#6D6D6D",
+  "Agriculture" = "#FFD92F",
+  "Vegetation" = "#1B9E77",
+  "Water" = "#1F78B4")
+```
+
+```{r}
+classify_landuse <- function(data) {
+  data |>
+    mutate(main_class = case_when(
+      
+      # Specific Developed Types
+      str_starts(deluname, "Dev_ResHigh")  ~ "Residential",
+      str_starts(deluname, "Dev_ResLow")   ~ "Residential",
+      str_starts(deluname, "Dev_Com")      ~ "Commercial",
+      str_starts(deluname, "Dev_Ind")      ~ "Industrial",
+      str_starts(deluname, "Dev_Pervious") ~ "Pervious(Developed)",
+      
+      # Catch ALL other Dev categories
+      str_starts(deluname, "Dev")          ~ "Other Developed",
+      
+      # Other Land Uses
+      str_starts(deluname, "Road")         ~ "Road",
+      str_starts(deluname, "Agriculture")  ~ "Agriculture",
+      str_starts(deluname, "Veg")          ~ "Vegetation",
+      str_starts(deluname, "Water")        ~ "Water",
+      
+      TRUE ~ "Other"))}
+```
 
 ## Dominguez Channel Watershed
 
@@ -464,7 +661,8 @@ intersect(names(dc_lu_2113_clean), names(landuse_deluid_2113))
 # Join Tables 
 dc_lu_2113_join <- dc_lu_2113_clean |>
   left_join(landuse_deluid_2113, by = c("subbasin", "deluid")) |>
-  clean_names()
+  clean_names() |>
+  filter(subbasin == 2113) 
 
 
 # Check number of rows 
@@ -475,15 +673,12 @@ sum(is.na(dc_lu_2113_join[[names(landuse_deluid_2113)[3]]]))
 
 
 # Categorize the delineations into main classes for easier data manipulation
-dc_plot_2113 <- dc_lu_2113_join |>
-  mutate(main_class = str_extract(deluname, "^[^_-]+")) |>
-  rename(Vegetation = Veg,
-         Developed = Dev)
- # summarise(total_volume = area_ac*
+dc_plot_2113 <- classify_landuse(dc_lu_2113_join) 
+
 ```
 
 ```{r}
-# Summarize the data
+# Summarize the Average Annual data
 lu_area_2113_sum <- dc_plot_2113 |>
   group_by(main_class) |>
   summarise(total_area = sum(area, na.rm = TRUE),
@@ -491,33 +686,55 @@ lu_area_2113_sum <- dc_plot_2113 |>
             total_avg_n = sum(po_tn, na.rm = TRUE))
 
 # Landuse Type Distribution Plot 
-lu_2113_plot <- ggplot(lu_area_2113_sum, aes(x = main_class, y = total_area)) +
+lu_2113_plot <- ggplot(lu_area_2113_sum, aes(x = main_class, y = total_area, fill = main_class)) +
   geom_col() +
-  labs(x = "Land Use Type", y = "Total Average Area (acres)", 
-       title = "Jurished 2113 Landuse Distribution") +
-  theme_minimal()
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "Banning Park & Museum (Juri: 2113) Land Use Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        legend.position = "none",
+        axis.title.x = element_blank())
 
 print(lu_2113_plot)
 
 # Sediment Loading Plot
-lu_2113_sed <- ggplot(lu_area_2113_sum, aes(x = main_class, y = total_avg_sed)) +
+lu_2113_sed <- ggplot(lu_area_2113_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
   geom_col() +
-  labs(x = "Land Use Type", y = "Total Average Sediment (tons/year)", 
-       title = "Jurished 2113 Average Sediment Loading 2008-2018") +
-  theme_minimal()
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Average Sediment (tons/year)", 
+       title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        legend.position = "none",
+        axis.title.x = element_blank())
+
 print(lu_2113_sed)
 
 
-# Nitrogen FLux Plot
-lu_2113_n <- ggplot(lu_area_2113_sum, aes(x = main_class, y = total_avg_n)) +
+# Nitrogen Flux Plot
+lu_2113_n <- ggplot(lu_area_2113_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
   geom_col() +
-  labs(x = "Land Use Type", y = "Total Average Nitrogen Flux (lbs/year)", 
-       title = "Jurished 2113 Average Nitrogen Flux 2008-2018") +
-  theme_minimal()
-print(lu_2113_n)
-```
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Average Nitrogen Flux (lbs/year)",
+       title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        legend.position = "none")
 
-#### **Loading**
+print(lu_2113_n)
+
+# Patchwork
+combined_2113 <- (lu_2113_plot / lu_2113_sed /lu_2113_n) +
+  plot_layout(ncol = 1)
+
+print(combined_2113)
+
+# Save
+ggsave(here(dc_2113_folder, "lu_plot_2113.png"),
+                           height = 12, width = 6, dpi = 300)
+  
+```
 
 ### 2074 - Jesse Owens Community Regional Park
 
@@ -535,7 +752,100 @@ landuse_deluid_2074 <- read_excel(here(dc_2074_folder,
 #          row.names = FALSE)
 ```
 
-#### **Loading**
+```{r}
+# Dominguez Channel 2074 Landuse Data 
+dc_lu_2074_raw <- read.csv(here(dc_2074_folder, 
+                                "landuse_dc_2074.csv"))
+
+# Dominguez Channel 2074 Delineation Data
+dc_deluid_2074 <- read.csv(here(dc_2074_folder, 
+                                "landuse_deluid_2074.csv"))
+
+unique(dc_lu_2074_raw$deluid)
+
+dc_lu_2074_clean <- dc_lu_2074_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(dc_lu_2074_clean)
+names(dc_deluid_2074)
+intersect(names(dc_lu_2074_clean), names(dc_deluid_2074))
+
+dc_lu_2074_join <- dc_lu_2074_clean |>
+  left_join(dc_deluid_2074, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 2074) 
+
+nrow(dc_lu_2074_clean)
+nrow(dc_lu_2074_join)
+
+sum(is.na(dc_lu_2074_join[[names(dc_deluid_2074)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+dc_plot_2074 <- classify_landuse(dc_lu_2074_join) 
+
+```
+
+```{r}
+# Summarize the Average Annual data
+lu_area_2074_sum <- dc_plot_2074 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+# Landuse Type Distribution Plot 
+lu_2074_plot <- ggplot(lu_area_2074_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "Jesse Owens Community Regional Park (Juri: 2074) Land Use Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        legend.position = "none",
+        axis.title.x = element_blank())
+
+print(lu_2074_plot)
+
+# Sediment Loading Plot
+lu_2074_sed <- ggplot(lu_area_2074_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Average Sediment (tons/year)", 
+       title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        legend.position = "none",
+        axis.title.x = element_blank())
+
+print(lu_2074_sed)
+
+
+# Nitrogen Flux Plot
+lu_2074_n <- ggplot(lu_area_2074_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Average Nitrogen Flux (lbs/year)",
+       title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        legend.position = "none")
+
+print(lu_2074_n)
+
+# Patchwork
+combined_2074 <- (lu_2074_plot / lu_2074_sed /lu_2074_n) +
+  plot_layout(ncol = 1)
+
+print(combined_2074)
+
+# Save
+ggsave(here(dc_2074_folder, "lu_plot_2074.png"),
+                           height = 12, width = 6, dpi = 300)
+
+
+```
 
 ## Los Angeles River Watershed
 
@@ -555,7 +865,84 @@ landuse_deluid_6387 <- read_excel(here(lar_6387_folder,
 #          row.names = FALSE)
 ```
 
-#### Loading
+```{r}
+lar_lu_6387_raw <- read.csv(here(lar_6387_folder, 
+                                 "landuse_lar_6387.csv"))
+lar_deluid_6387 <- read.csv(here(lar_6387_folder, 
+                                 "landuse_deluid_6387.csv")) |>
+  filter(subbasin == "6387")
+
+unique(lar_lu_6387_raw$deluid)
+
+lar_lu_6387_clean <- lar_lu_6387_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(lar_lu_6387_clean)
+names(lar_deluid_6387)
+intersect(names(lar_lu_6387_clean), names(lar_deluid_6387))
+
+lar_lu_6387_join <- lar_lu_6387_clean |>
+  left_join(lar_deluid_6387, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 6387)
+
+nrow(lar_lu_6387_clean)
+nrow(lar_lu_6387_join)
+
+sum(is.na(lar_lu_6387_join[[names(lar_deluid_6387)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+lar_plot_6387 <- classify_landuse(lar_lu_6387_join) 
+
+```
+
+```{r}
+# Summary Statistics 
+lu_area_6387_sum <- lar_plot_6387 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+# Land Use Distribution Plot 
+lu_6387_plot <- ggplot(lu_area_6387_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "Pecan Playground (Juri: 6387) Land Use Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+
+# Sediment Plot 
+lu_6387_sed <- ggplot(lu_area_6387_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Sediment (tons/year)", 
+       title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+
+# Nitrogen Plot 
+lu_6387_n <- ggplot(lu_area_6387_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Nitrogen Flux (lbs/year)", 
+       title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none")
+
+
+#Combined Plot 
+combined_6387 <- (lu_6387_plot / lu_6387_sed / lu_6387_n) + plot_layout(ncol = 1)
+ggsave(here(lar_6387_folder, "lu_plot_6387.png"), combined_6387, height = 12, width = 6, dpi = 300)
+
+```
 
 ### 6396 - State Street Recreation Center
 
@@ -573,7 +960,69 @@ landuse_deluid_6396 <- read_excel(here(lar_6396_folder,
 #          row.names = FALSE)
 ```
 
-#### **Loading**
+```{r}
+lar_lu_6396_raw <- read.csv(here(lar_6396_folder, 
+                                 "landuse_lar_6396.csv"))
+lar_deluid_6396 <- read.csv(here(lar_6396_folder,
+                                 "landuse_deluid_6396.csv"))
+
+unique(lar_lu_6396_raw$deluid)
+
+lar_lu_6396_clean <- lar_lu_6396_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(lar_lu_6396_clean)
+names(lar_deluid_6396)
+intersect(names(lar_lu_6396_clean), names(lar_deluid_6396))
+
+lar_lu_6396_join <- lar_lu_6396_clean |>
+  left_join(lar_deluid_6396, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 6396)
+
+nrow(lar_lu_6396_clean)
+nrow(lar_lu_6396_join)
+
+sum(is.na(lar_lu_6396_join[[names(lar_deluid_6396)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+lar_plot_6396 <- classify_landuse(lar_lu_6396_join) 
+
+```
+
+```{r}
+lu_area_6396_sum <- lar_plot_6396 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+lu_6396_plot <- ggplot(lu_area_6396_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", title = "State Street Recreation Center (Juri: 6396) Landuse Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none", axis.title.x = element_blank())
+
+lu_6396_sed <- ggplot(lu_area_6396_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Sediment (tons/year)", title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none", axis.title.x = element_blank())
+
+lu_6396_n <- ggplot(lu_area_6396_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Nitrogen Flux (lbs/year)", title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none")
+
+combined_6396 <- (lu_6396_plot / lu_6396_sed / lu_6396_n) + plot_layout(ncol = 1)
+ggsave(here(lar_6396_folder, "lu_plot_6396.png"), combined_6396, height = 12, width = 6, dpi = 300)
+```
 
 ### 6480 - Glassel Park
 
@@ -591,7 +1040,71 @@ landuse_deluid_6480 <- read_excel(here(lar_6480_folder,
 #          row.names = FALSE)
 ```
 
-#### Loading
+```{r}
+lar_lu_6480_raw <- read.csv(here(lar_6480_folder, 
+                                 "landuse_lar_6480.csv"))
+lar_deluid_6480 <- read.csv(here(lar_6480_folder,
+                                 "landuse_deluid_6480.csv"))
+
+unique(lar_lu_6480_raw$deluid)
+
+lar_lu_6480_clean <- lar_lu_6480_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(lar_lu_6480_clean)
+names(lar_deluid_6480)
+intersect(names(lar_lu_6480_clean), names(lar_deluid_6480))
+
+lar_lu_6480_join <- lar_lu_6480_clean |>
+  left_join(lar_deluid_6480, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 6480)
+
+nrow(lar_lu_6480_clean)
+nrow(lar_lu_6480_join)
+
+sum(is.na(lar_lu_6480_join[[names(lar_deluid_6480)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+lar_plot_6480 <- classify_landuse(lar_lu_6480_join) 
+
+```
+
+```{r}
+lu_area_6480_sum <- lar_plot_6480 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+lu_6480_plot <- ggplot(lu_area_6480_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "Glassel park (Juri: 6480) Landuse Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none", axis.title.x = element_blank())
+
+lu_6480_sed <- ggplot(lu_area_6480_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Sediment (tons/year)", title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none", axis.title.x = element_blank())
+
+lu_6480_n <- ggplot(lu_area_6480_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Nitrogen Flux (lbs/year)", title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none")
+
+combined_6480 <- (lu_6480_plot / lu_6480_sed / lu_6480_n) + plot_layout(ncol = 1)
+
+ggsave(here(lar_6480_folder, "lu_plot_6480.png"), combined_6480, height = 12, width = 6, dpi = 300)
+```
 
 ## San Gabriel Watershed
 
@@ -599,7 +1112,7 @@ landuse_deluid_6480 <- read_excel(here(lar_6480_folder,
 
 Subbasin 5109 was modeled for Rosewood Park (Jurished: 510916, City: Cerritos, Acres: 5.447).
 
-**Create CSV Files**
+#### Landuse
 
 ```{r}
 # Read the delineation excel sheet and convert to csv
@@ -611,9 +1124,85 @@ landuse_deluid_5109 <- read_excel(here(sg_5109_folder,
 #          row.names = FALSE)
 ```
 
-#### Landuse
+```{r}
+sg_lu_5109_raw <- read.csv(here(sg_5109_folder, 
+                                "landuse_sg_5109.csv"))
+sg_deluid_5109 <- read.csv(here(sg_5109_folder, 
+                                "landuse_deluid_5109.csv"))
 
-#### Loading
+unique(sg_lu_5109_raw$deluid)
+
+sg_lu_5109_clean <- sg_lu_5109_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(sg_lu_5109_clean)
+names(sg_deluid_5109)
+intersect(names(sg_lu_5109_clean), names(sg_deluid_5109))
+
+sg_lu_5109_join <- sg_lu_5109_clean |>
+  left_join(sg_deluid_5109, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 5109)
+
+nrow(sg_lu_5109_clean)
+nrow(sg_lu_5109_join)
+
+sum(is.na(sg_lu_5109_join[[names(sg_deluid_5109)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+sg_plot_5109 <- classify_landuse(sg_lu_5109_join) 
+```
+
+```{r}
+# Summary Statistics 
+lu_area_5109_sum <- sg_plot_5109 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+# Land Use Distribution Plot 
+lu_5109_plot <- ggplot(lu_area_5109_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "Rosewood Park (Juri: 5109) Land Use Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+print(lu_5109_plot)
+
+# Sediment Plot 
+lu_5109_sed <- ggplot(lu_area_5109_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Sediment (tons/year)", 
+       title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+print(lu_5109_sed)
+
+
+# Nitrogen Plot 
+lu_5109_n <- ggplot(lu_area_5109_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Nitrogen Flux (lbs/year)", 
+       title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none")
+print(lu_5109_n)
+
+
+#Combined Plot 
+combined_5109  <- (lu_5109_plot / lu_5109_sed / lu_5109_n) + plot_layout(ncol = 1)
+ggsave(here(sg_5109_folder, "lu_plot_5109.png"), combined_5109, height = 12, width = 6, dpi = 300)
+```
 
 ### 5118 - Byron Zinn Park
 
@@ -631,7 +1220,86 @@ landuse_deluid_5118 <- read_excel(here(sg_5118_folder,
 #          row.names = FALSE)
 ```
 
-#### Loading
+```{r}
+sg_lu_5118_raw <- read.csv(here(sg_5118_folder, 
+                                "landuse_sg_5118.csv"))
+sg_deluid_5118 <- read.csv(here(sg_5118_folder, 
+                                "landuse_deluid_5118.csv"))
+
+unique(sg_lu_5118_raw$deluid)
+
+sg_lu_5118_clean <- sg_lu_5118_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(sg_lu_5118_clean)
+names(sg_deluid_5118)
+intersect(names(sg_lu_5118_clean), names(sg_deluid_5118))
+
+sg_lu_5118_join <- sg_lu_5118_clean |>
+  left_join(sg_deluid_5118, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 5118)
+
+nrow(sg_lu_5118_clean)
+nrow(sg_lu_5118_join)
+
+sum(is.na(sg_lu_5118_join[[names(sg_deluid_5118)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+sg_plot_5118 <- classify_landuse(sg_lu_5118_join) 
+
+```
+
+```{r}
+# Summary Statistics 
+lu_area_5118_sum <- sg_plot_5118 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+# Land Use Distribution Plot 
+lu_5118_plot <- ggplot(lu_area_5118_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "Byron Zinn Park (Juri: 5118) Land Use Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+print(lu_5118_plot)
+
+# Sediment Plot 
+lu_5118_sed <- ggplot(lu_area_5118_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Sediment (tons/year)", 
+       title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+print(lu_5118_sed)
+
+
+# Nitrogen Plot 
+lu_5118_n <- ggplot(lu_area_5118_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Nitrogen Flux (lbs/year)", 
+       title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none")
+print(lu_5118_n)
+
+
+#Combined Plot 
+combined_5118  <- (lu_5118_plot / lu_5118_sed / lu_5118_n) + plot_layout(ncol = 1)
+ggsave(here(sg_5118_folder, "lu_plot_5118.png"), combined_5118, height = 12, width = 6, dpi = 300)
+```
 
 ### 5120 - New River Park
 
@@ -674,7 +1342,9 @@ intersect(names(sg_lu_5120_clean), names(sg_deluid_5120))
 
 # Join Tables 
 sg_lu_5120_join <- sg_lu_5120_clean |>
-  left_join(sg_deluid_5120, by = c("subbasin", "deluid"))
+  left_join(sg_deluid_5120, by = c("subbasin", "deluid")) |>
+  clean_names()|>
+  filter(subbasin == 5120)
 
 
 # Check number of rows 
@@ -683,48 +1353,58 @@ nrow(sg_lu_5120_join)
 
 sum(is.na(sg_lu_5120_join[[names(sg_deluid_5120)[3]]]))
 
-```
-
-```{r}
 # Categorize the delineations into main classes for easier data manipulation
-sg_plot_5120 <- sg_lu_5120_join |>
-  mutate(main_class = str_extract(deluname, "^[^_-]+"))
- # summarise(total_volume = area_ac*
+sg_plot_5120 <- classify_landuse(sg_lu_5120_join) 
+
 ```
 
 ```{r}
-# Summarize the data
+# Summary Statistics 
 lu_area_5120_sum <- sg_plot_5120 |>
   group_by(main_class) |>
-  summarise(total_area = sum(AREA, na.rm = TRUE),
-            total_avg_sed = sum(SEDLOAD, na.rm = TRUE),
-            total_avg_n = sum(PO_TN, na.rm = TRUE))
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
 
-# Landuse Type Distribution Plot 
-lu_5120_plot <- ggplot(lu_area_5120_sum, aes(x = main_class, y = total_area)) +
+# Land Use Distribution Plot 
+lu_5120_plot <- ggplot(lu_area_5120_sum, aes(x = main_class, y = total_area, fill = main_class)) +
   geom_col() +
-  labs(x = "Land Use Type", y = "Total Average Area (acres)", 
-       title = "Jurished 5120 Landuse Distribution") +
-  theme_minimal()
-
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "New River Park (Juri: 5120) Land Use Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
 print(lu_5120_plot)
 
-# Sediment Loading Plot
-lu_5120_sed <- ggplot(lu_area_5120_sum, aes(x = main_class, y = total_avg_sed)) +
+# Sediment Plot 
+lu_5120_sed <- ggplot(lu_area_5120_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
   geom_col() +
-  labs(x = "Land Use Type", y = "Total Average Sediment (tons/year)", 
-       title = "Jurished 5120 Average Sediment Loading 2008-2018") +
-  theme_minimal()
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Sediment (tons/year)", 
+       title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
 print(lu_5120_sed)
 
 
-# Nitrogen FLux Plot
-lu_5120_n <- ggplot(lu_area_5120_sum, aes(x = main_class, y = total_avg_n)) +
+# Nitrogen Plot 
+lu_5120_n <- ggplot(lu_area_5120_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
   geom_col() +
-  labs(x = "Land Use Type", y = "Total Average Nitrogen Flux (lbs/year)", 
-       title = "Jurished 5120 Average Nitrogen Flux 2008-2018") +
-  theme_minimal()
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Nitrogen Flux (lbs/year)", 
+       title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none")
 print(lu_5120_n)
+
+
+#Combined Plot 
+combined_5120  <- (lu_5120_plot / lu_5120_sed / lu_5120_n) + plot_layout(ncol = 1)
+ggsave(here(sg_5120_folder, "lu_plot_5120.png"), combined_5120, height = 12, width = 6, dpi = 300)
 ```
 
 ## Santa Monica Watershed
@@ -733,13 +1413,11 @@ print(lu_5120_n)
 
 Subbasin 1030 was modeled for Rogers Park (Jurished: 103037, City: Inglewood, Acres: 12.792).
 
+#### Landuse
+
 **Create CSV Files**
 
 ```{r}
-# Locate the Santa Monica 1030 Folder
-sm_1030_folder <- here("data", "wmms", "park_rec", "sm_1030")
-
-
 # Read the delineation excel sheet and convert to csv
 landuse_deluid_1030 <- read_excel(here(sm_1030_folder,
                                        "landuse_deluid_1030.xlsx"))
@@ -749,21 +1427,96 @@ landuse_deluid_1030 <- read_excel(here(sm_1030_folder,
 #          row.names = FALSE)
 ```
 
-#### Loading
+```{r}
+sm_lu_1030_raw <- read.csv(here(sm_1030_folder, 
+                                "landuse_sm_1030.csv"))
 
-#### Landuse
+sm_deluid_1030 <- read.csv(here(sm_1030_folder, 
+                                "landuse_deluid_1030.csv"))
+
+unique(sm_lu_1030_raw$deluid)
+
+sm_lu_1030_clean <- sm_lu_1030_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(sm_lu_1030_clean)
+names(sm_deluid_1030)
+intersect(names(sm_lu_1030_clean), names(sm_deluid_1030))
+
+sm_lu_1030_join <- sm_lu_1030_clean |>
+  left_join(sm_deluid_1030, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 1030)
+
+nrow(sm_lu_1030_clean)
+nrow(sm_lu_1030_join)
+
+sum(is.na(sm_lu_1030_join[[names(sm_deluid_1030)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+sm_plot_1030 <- classify_landuse(sm_lu_1030_join) 
+```
+
+```{r}
+# Summary Statistics 
+lu_area_1030_sum <- sm_plot_1030 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+# Land Use Distribution Plot 
+lu_1030_plot <- ggplot(lu_area_1030_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "Rogers Park (Juri: 1030) Land Use Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+print(lu_1030_plot)
+
+# Sediment Plot 
+lu_1030_sed <- ggplot(lu_area_1030_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Sediment (tons/year)", 
+       title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+print(lu_1030_sed)
+
+
+# Nitrogen Plot 
+lu_1030_n <- ggplot(lu_area_1030_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Nitrogen Flux (lbs/year)", 
+       title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none")
+print(lu_1030_n)
+
+
+#Combined Plot 
+combined_1030  <- (lu_1030_plot / lu_1030_sed / lu_1030_n) + plot_layout(ncol = 1)
+ggsave(here(sm_1030_folder, "lu_plot_1030.png"), combined_1030, height = 12, width = 6, dpi = 300)
+```
 
 ### 1077 - Exposition Park
 
 Subbasin 1077 modeled for Exposition Park (Jurished: 107749, City: Los Angeles City, Acres: 10.394).
 
+#### Landuse
+
 **Create CSV Files**
 
 ```{r}
-# Locate the Santa Monica 1077 Folder
-sm_1077_folder <- here("data", "wmms", "park_rec", "sm_1077")
-
-
 # Read the delineation excel sheet and convert to csv
 landuse_deluid_1077 <- read_excel(here(sm_1077_folder,
                                        "landuse_deluid_1077.xlsx"))
@@ -773,9 +1526,86 @@ landuse_deluid_1077 <- read_excel(here(sm_1077_folder,
 #          row.names = FALSE)
 ```
 
-#### Loading
+```{r}
+sm_lu_1077_raw <- read.csv(here(sm_1077_folder, 
+                                "landuse_sm_1077.csv"))
 
-#### Landuse
+sm_deluid_1077 <- read.csv(here(sm_1077_folder, 
+                                "landuse_deluid_1077.csv"))
+
+unique(sm_lu_1077_raw$deluid)
+
+sm_lu_1077_clean <- sm_lu_1077_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(sm_lu_1077_clean)
+names(sm_deluid_1077)
+intersect(names(sm_lu_1077_clean), names(sm_deluid_1077))
+
+sm_lu_1077_join <- sm_lu_1077_clean |>
+  left_join(sm_deluid_1077, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 1077)
+
+nrow(sm_lu_1077_clean)
+nrow(sm_lu_1077_join)
+
+sum(is.na(sm_lu_1077_join[[names(sm_deluid_1077)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+sm_plot_1077 <- classify_landuse(sm_lu_1077_join) 
+```
+
+```{r}
+# Summary Statistics 
+lu_area_1077_sum <- sm_plot_1077 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+# Land Use Distribution Plot 
+lu_1077_plot <- ggplot(lu_area_1077_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "Exposition Park (Juri: 1077) Land Use Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+print(lu_1077_plot)
+
+# Sediment Plot 
+lu_1077_sed <- ggplot(lu_area_1077_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Sediment (tons/year)", 
+       title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+print(lu_1077_sed)
+
+
+# Nitrogen Plot 
+lu_1077_n <- ggplot(lu_area_1077_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Nitrogen Flux (lbs/year)", 
+       title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none")
+print(lu_1077_n)
+
+
+#Combined Plot 
+combined_1077  <- (lu_1077_plot / lu_1077_sed / lu_1077_n) + plot_layout(ncol = 1)
+ggsave(here(sm_1077_folder, "lu_plot_1077.png"), combined_1077, height = 12, width = 6, dpi = 300)
+```
 
 # School Recommendations
 
@@ -784,6 +1614,8 @@ landuse_deluid_1077 <- read_excel(here(sm_1077_folder,
 ### 2034 - Gardena High School
 
 Subbasin 2034 modeled for Gardena High School (Jurished: 203428, City: Gardena).
+
+#### Landuse
 
 **Create CSV File**
 
@@ -795,15 +1627,107 @@ landuse_deluid_2034 <- read_excel(here(dc_2034_folder,
 write.csv(landuse_deluid_2034, here(dc_2034_folder,
                                        "landuse_deluid_2034.csv"),
           row.names = FALSE)
+
 ```
 
-#### Loading
+```{r}
+# Dominguez Channel 2034 Landuse Data 
+dc_lu_2034_raw <- read.csv(here(dc_2034_folder, 
+                                "landuse_dc_2034.csv"))
 
-#### Landuse
+# Dominguez Channel 2034 Delineation Data
+dc_deluid_2034 <- read.csv(here(dc_2034_folder, 
+                                "landuse_deluid_2034.csv"))
+
+unique(dc_lu_2034_raw$deluid)
+
+dc_lu_2034_clean <- dc_lu_2034_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(dc_lu_2034_clean)
+names(dc_deluid_2034)
+intersect(names(dc_lu_2034_clean), names(dc_deluid_2034))
+
+dc_lu_2034_join <- dc_lu_2034_clean |>
+  left_join(dc_deluid_2034, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 2034)
+
+nrow(dc_lu_2034_clean)
+nrow(dc_lu_2034_join)
+
+sum(is.na(dc_lu_2034_join[[names(dc_deluid_2034)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+dc_plot_2034 <- classify_landuse(dc_lu_2034_join) 
+```
+
+```{r}
+# Summarize the Average Annual data
+lu_area_2034_sum <- dc_plot_2034 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+# Landuse Type Distribution Plot 
+lu_2034_plot <- ggplot(lu_area_2034_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "Gardena High School (Juri: 2034) Land Use Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        legend.position = "none",
+        axis.title.x = element_blank())
+
+print(lu_2034_plot)
+
+# Sediment Loading Plot
+lu_2034_sed <- ggplot(lu_area_2034_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Average Sediment (tons/year)", 
+       title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        legend.position = "none",
+        axis.title.x = element_blank())
+
+print(lu_2034_sed)
+
+
+# Nitrogen Flux Plot
+lu_2034_n <- ggplot(lu_area_2034_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Average Nitrogen Flux (lbs/year)",
+       title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        legend.position = "none")
+
+print(lu_2034_n)
+
+# Patchwork
+combined_2034 <- (lu_2034_plot / lu_2034_sed /lu_2034_n) +
+  plot_layout(ncol = 1)
+
+print(combined_2034)
+
+# Save
+ggsave(here(dc_2034_folder, "lu_plot_2034.png"),
+                           height = 12, width = 6, dpi = 300)
+
+```
 
 ### 2088 - Narbonne High School
 
 Subbasin 2088 modeled for Narbonne High School (Jurished: 208849, City: Harbor City).
+
+#### **Landuse**
 
 **Create CSV Files**
 
@@ -817,13 +1741,43 @@ landuse_deluid_2088 <- read_excel(here(dc_2088_folder,
 #          row.names = FALSE)
 ```
 
-#### **Loading**
+```{r}
+dc_lu_2088_raw <- read.csv(here(dc_2088_folder, "dc_2088",
+                                "landuse_dc_2088.csv"))
+dc_deluid_2088 <- read.csv(here(dc_2088_folder, "dc_2088",
+                                "landuse_deluid_2088.csv"))
 
-#### **Landuse**
+unique(dc_lu_2088_raw$deluid)
+
+dc_lu_2088_clean <- dc_lu_2088_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(dc_lu_2088_clean)
+names(dc_deluid_2088)
+intersect(names(dc_lu_2088_clean), names(dc_deluid_2088))
+
+dc_lu_2088_join <- dc_lu_2088_clean |>
+  left_join(dc_deluid_2088, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 2088)
+
+nrow(dc_lu_2088_clean)
+nrow(dc_lu_2088_join)
+
+sum(is.na(dc_lu_2088_join[[names(dc_deluid_2088)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+dc_plot_2088 <- classify_landuse(dc_lu_2088_join) 
+
+```
 
 ### 2122 - San Pedro High School
 
 Subbasin 2122 modeled for San Pedro High School (Jurished: 212249, City: San Pedro).
+
+#### Landuse
 
 **Create CSV Files**
 
@@ -837,15 +1791,102 @@ landuse_deluid_2122 <- read_excel(here(dc_2122_folder,
 #          row.names = FALSE)
 ```
 
-#### Loading
+```{r}
+dc_lu_2122_raw <- read.csv(here(dc_2122_folder, "landuse_dc_2122.csv"))
+dc_deluid_2122 <- read.csv(here(dc_2122_folder, "dc_2122", "landuse_deluid_2122.csv"))
 
-#### Landuse
+unique(dc_lu_2122_raw$deluid)
+
+dc_lu_2122_clean <- dc_lu_2122_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(dc_lu_2122_clean)
+names(dc_deluid_2122)
+intersect(names(dc_lu_2122_clean), names(dc_deluid_2122))
+
+dc_lu_2122_join <- dc_lu_2122_clean |>
+  left_join(dc_deluid_2122, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 2122)
+
+nrow(dc_lu_2122_clean)
+nrow(dc_lu_2122_join)
+
+sum(is.na(dc_lu_2122_join[[names(dc_deluid_2122)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+dc_plot_2122 <- classify_landuse(dc_lu_2122_join) 
+
+```
+
+```{r}
+# Summarize the Average Annual data
+lu_area_2122_sum <- dc_plot_2122 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+# Landuse Type Distribution Plot 
+lu_2122_plot <- ggplot(lu_area_2122_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "San Pedro High School (Juri: 2122) Land Use Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        legend.position = "none",
+        axis.title.x = element_blank())
+
+print(lu_2122_plot)
+
+# Sediment Loading Plot
+lu_2122_sed <- ggplot(lu_area_2122_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Average Sediment (tons/year)", 
+       title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        legend.position = "none",
+        axis.title.x = element_blank())
+
+print(lu_2122_sed)
+
+
+# Nitrogen Flux Plot
+lu_2122_n <- ggplot(lu_area_2122_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Average Nitrogen Flux (lbs/year)",
+       title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        legend.position = "none")
+
+print(lu_2122_n)
+
+# Patchwork
+combined_2122 <- (lu_2122_plot / lu_2122_sed / lu_2122_n) +
+  plot_layout(ncol = 1)
+
+print(combined_2122)
+
+# Save
+ggsave(here(dc_2122_folder, "lu_plot_2122.png"),
+       height = 12, width = 6, dpi = 300)
+
+```
 
 ## Los Angeles River Watershed
 
 ### 6873 - Birmingham Community Charter High School
 
 Subbasin 6873 modeled for Birmingham Community Charter High School (Jurished: 687349, City: Van Nuys).
+
+#### Landuse
 
 **Create CSV File**
 
@@ -859,13 +1900,88 @@ landuse_deluid_6873 <- read_excel(here(lar_6873_folder,
 #          row.names = FALSE)
 ```
 
-#### Loading
+```{r}
+lar_lu_6873_raw <- read.csv(here(lar_6873_folder, 
+                                 "landuse_lar_6873.csv"))
+lar_deluid_6873 <- read.csv(here(lar_6873_folder,
+                                 "landuse_deluid_6873.csv"))
 
-#### Landuse
+unique(lar_lu_6873_raw$deluid)
+
+lar_lu_6873_clean <- lar_lu_6873_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(lar_lu_6873_clean)
+names(lar_deluid_6873)
+intersect(names(lar_lu_6873_clean), names(lar_deluid_6873))
+
+lar_lu_6873_join <- lar_lu_6873_clean |>
+  left_join(lar_deluid_6873, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 6873)
+
+nrow(lar_lu_6873_clean)
+nrow(lar_lu_6873_join)
+
+sum(is.na(lar_lu_6873_join[[names(lar_deluid_6873)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+lar_plot_6873 <- classify_landuse(lar_lu_6873_join) 
+
+```
+
+```{r}
+# Summary Statistics 
+lu_area_6387_sum <- lar_plot_6387 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+# Land Use Distribution Plot 
+lu_6387_plot <- ggplot(lu_area_6387_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "Birmingham Community Charter High School (Juri: 6387) Land Use Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+
+# Sediment Plot 
+lu_6387_sed <- ggplot(lu_area_6387_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Sediment (tons/year)", 
+       title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+
+# Nitrogen Plot 
+lu_6387_n <- ggplot(lu_area_6387_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Nitrogen Flux (lbs/year)", 
+       title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none")
+
+
+#Combined Plot 
+combined_6387 <- (lu_6387_plot / lu_6387_sed / lu_6387_n) + plot_layout(ncol = 1)
+ggsave(here(lar_6387_folder, "lu_plot_6387.png"), combined_6387, height = 12, width = 6, dpi = 300)
+```
 
 ### 6682 - Francis Polytechnic High School
 
 Subbasin 6682 modeled for Francis Polytechnic High School (Jurished: 668249, City: Sun Valley).
+
+#### Landuse
 
 **Create CSV File**
 
@@ -879,13 +1995,88 @@ landuse_deluid_6682 <- read_excel(here(lar_6682_folder,
 #          row.names = FALSE)
 ```
 
-#### Loading
+```{r}
+lar_lu_6682_raw <- read.csv(here(lar_6682_folder, 
+                                 "landuse_lar_6682.csv"))
+lar_deluid_6682 <- read.csv(here(lar_6682_folder, "lar_6682",
+                                 "landuse_deluid_6682.csv"))
 
-#### Landuse
+unique(lar_lu_6682_raw$deluid)
+
+lar_lu_6682_clean <- lar_lu_6682_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(lar_lu_6682_clean)
+names(lar_deluid_6682)
+intersect(names(lar_lu_6682_clean), names(lar_deluid_6682))
+
+lar_lu_6682_join <- lar_lu_6682_clean |>
+  left_join(lar_deluid_6682, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 6682)
+
+nrow(lar_lu_6682_clean)
+nrow(lar_lu_6682_join)
+
+sum(is.na(lar_lu_6682_join[[names(lar_deluid_6682)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+lar_plot_6682 <- classify_landuse(lar_lu_6682_join) 
+
+```
+
+```{r}
+# Summary Statistics 
+lu_area_6682_sum <- lar_plot_6682 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+# Land Use Distribution Plot 
+lu_6682_plot <- ggplot(lu_area_6682_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "Francis Polytechnic High School (Juri: 6682) Land Use Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+
+# Sediment Plot 
+lu_6682_sed <- ggplot(lu_area_6682_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Sediment (tons/year)", 
+       title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+
+# Nitrogen Plot 
+lu_6682_n <- ggplot(lu_area_6682_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Nitrogen Flux (lbs/year)", 
+       title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none")
+
+# Combined Plot 
+combined_6682 <- (lu_6682_plot / lu_6682_sed / lu_6682_n) + plot_layout(ncol = 1)
+ggsave(here(lar_6682_folder, "lu_plot_6682.png"), combined_6682, height = 12, width = 6, dpi = 300)
+
+```
 
 ### 6697 - San Fernando High School
 
 Subbasin 6697 modeled for San Fernando High School (Jurished: 669749, City: San Fernando).
+
+#### Landuse
 
 **Create CSV File**
 
@@ -899,13 +2090,87 @@ landuse_deluid_6697 <- read_excel(here(lar_6697_folder,
 #          row.names = FALSE)
 ```
 
-#### Loading
+```{r}
+lar_lu_6697_raw <- read.csv(here(lar_6697_folder, 
+                                 "landuse_lar_6697.csv"))
+lar_deluid_6697 <- read.csv(here(lar_6697_folder,
+                                 "landuse_deluid_6697.csv"))
 
-#### Landuse
+unique(lar_lu_6697_raw$deluid)
+
+lar_lu_6697_clean <- lar_lu_6697_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(lar_lu_6697_clean)
+names(lar_deluid_6697)
+intersect(names(lar_lu_6697_clean), names(lar_deluid_6697))
+
+lar_lu_6697_join <- lar_lu_6697_clean |>
+  left_join(lar_deluid_6697, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 6697)
+
+nrow(lar_lu_6697_clean)
+nrow(lar_lu_6697_join)
+
+sum(is.na(lar_lu_6697_join[[names(lar_deluid_6697)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+lar_plot_6697 <- classify_landuse(lar_lu_6697_join) 
+```
+
+```{r}
+# Summary Statistics 
+lu_area_6697_sum <- lar_plot_6697 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+# Land Use Distribution Plot 
+lu_6697_plot <- ggplot(lu_area_6697_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "San Fernando High School (Juri: 6697) Land Use Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+
+# Sediment Plot 
+lu_6697_sed <- ggplot(lu_area_6697_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Sediment (tons/year)", 
+       title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+
+# Nitrogen Plot 
+lu_6697_n <- ggplot(lu_area_6697_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Nitrogen Flux (lbs/year)", 
+       title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none")
+
+# Combined Plot 
+combined_6697 <- (lu_6697_plot / lu_6697_sed / lu_6697_n) + plot_layout(ncol = 1)
+ggsave(here(lar_6697_folder, "lu_plot_6697.png"), combined_6697, height = 12, width = 6, dpi = 300)
+
+```
 
 ### 6925 - Cleveland Charter High School
 
 Subbasin 6925 modeled for Cleveland Charter High School (Jurished: 692549, City: Reseda).
+
+#### Landuse
 
 **Create CSV File**
 
@@ -919,15 +2184,89 @@ landuse_deluid_6925 <- read_excel(here(lar_6925_folder,
 #          row.names = FALSE)
 ```
 
-#### Loading
+```{r}
+lar_lu_6925_raw <- read.csv(here(lar_6925_folder, 
+                                 "landuse_lar_6925.csv"))
+lar_deluid_6925 <- read.csv(here(lar_6925_folder,
+                                 "landuse_deluid_6925.csv"))
 
-#### Landuse
+unique(lar_lu_6925_raw$deluid)
+
+lar_lu_6925_clean <- lar_lu_6925_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(lar_lu_6925_clean)
+names(lar_deluid_6925)
+intersect(names(lar_lu_6925_clean), names(lar_deluid_6925))
+
+lar_lu_6925_join <- lar_lu_6925_clean |>
+  left_join(lar_deluid_6925, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 6925)
+
+nrow(lar_lu_6925_clean)
+nrow(lar_lu_6925_join)
+
+sum(is.na(lar_lu_6925_join[[names(lar_deluid_6925)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+lar_plot_6925 <- classify_landuse(lar_lu_6925_join) 
+```
+
+```{r}
+# Summary Statistics 
+lu_area_6925_sum <- lar_plot_6925 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+# Land Use Distribution Plot 
+lu_6925_plot <- ggplot(lu_area_6925_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "Cleveland Charter High School (Juri: 6925) Land Use Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+
+# Sediment Plot 
+lu_6925_sed <- ggplot(lu_area_6925_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Sediment (tons/year)", 
+       title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+
+# Nitrogen Plot 
+lu_6925_n <- ggplot(lu_area_6925_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Nitrogen Flux (lbs/year)", 
+       title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none")
+
+# Combined Plot 
+combined_6925 <- (lu_6925_plot / lu_6925_sed / lu_6925_n) + plot_layout(ncol = 1)
+ggsave(here(lar_6925_folder, "lu_plot_6925.png"), combined_6925, height = 12, width = 6, dpi = 300)
+
+```
 
 ## Santa Monica Watershed
 
 ### 1067 - Crenshaw High School STEMM Magnet
 
 Subbasin 1067 modeled for Crenshaw High School STEMM Magnet (Jurished: 106749, City: Los Angeles).
+
+#### Landuse
 
 **Create CSV File**
 
@@ -941,13 +2280,91 @@ write.csv(landuse_deluid_1067, here(sm_1067_folder,
           row.names = FALSE)
 ```
 
-#### Loading
+```{r}
+sm_lu_1067_raw <- read.csv(here(sm_1067_folder, 
+                                "landuse_sm_1067.csv"))
+sm_deluid_1067 <- read.csv(here(sm_1067_folder, "sm_1067",
+                                "landuse_deluid_1067.csv"))
 
-#### Landuse
+unique(sm_lu_1067_raw$deluid)
+
+sm_lu_1067_clean <- sm_lu_1067_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(sm_lu_1067_clean)
+names(sm_deluid_1067)
+intersect(names(sm_lu_1067_clean), names(sm_deluid_1067))
+
+sm_lu_1067_join <- sm_lu_1067_clean |>
+  left_join(sm_deluid_1067, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 1067)
+
+nrow(sm_lu_1067_clean)
+nrow(sm_lu_1067_join)
+
+sum(is.na(sm_lu_1067_join[[names(sm_deluid_1067)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+sm_plot_1067 <- classify_landuse(sm_lu_1067_join) 
+```
+
+```{r}
+# Summary Statistics 
+lu_area_1067_sum <- sm_plot_1067 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+# Land Use Distribution Plot 
+lu_1067_plot <- ggplot(lu_area_1067_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "Crenshaw High School (Juri: 1067) Land Use Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+print(lu_1067_plot)
+
+# Sediment Plot 
+lu_1067_sed <- ggplot(lu_area_1067_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Sediment (tons/year)", 
+       title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+print(lu_1067_sed)
+
+
+# Nitrogen Plot 
+lu_1067_n <- ggplot(lu_area_1067_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Nitrogen Flux (lbs/year)", 
+       title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none")
+print(lu_1067_n)
+
+
+#Combined Plot 
+combined_1067  <- (lu_1067_plot / lu_1067_sed / lu_1067_n) + plot_layout(ncol = 1)
+ggsave(here(sm_1067_folder, "lu_plot_1067.png"), combined_1067, height = 12, width = 6, dpi = 300)
+```
 
 ### 1110 - Kennedy Community of Schools
 
 Subbasin 1110 modeled for Kennedy Community of Schools (Jurished: 111049, City: Los Angeles).
+
+#### Landuse
 
 **Create CSV File**
 
@@ -961,13 +2378,92 @@ landuse_deluid_1110 <- read_excel(here(sm_1110_folder,
 #          row.names = FALSE)
 ```
 
-#### Loading
+```{r}
 
-#### Landuse
+sm_lu_1110_raw <- read.csv(here(sm_1110_folder, 
+                                "landuse_sm_1110.csv"))
+sm_deluid_1110 <- read.csv(here(sm_1110_folder, 
+                                "landuse_deluid_1110.csv"))
+
+unique(sm_lu_1110_raw$deluid)
+
+sm_lu_1110_clean <- sm_lu_1110_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(sm_lu_1110_clean)
+names(sm_deluid_1110)
+intersect(names(sm_lu_1110_clean), names(sm_deluid_1110))
+
+sm_lu_1110_join <- sm_lu_1110_clean |>
+  left_join(sm_deluid_1110, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 1110)
+
+nrow(sm_lu_1110_clean)
+nrow(sm_lu_1110_join)
+
+sum(is.na(sm_lu_1110_join[[names(sm_deluid_1110)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+sm_plot_1110 <- classify_landuse(sm_lu_1110_join) 
+```
+
+```{r}
+# Summary Statistics 
+lu_area_1110_sum <- sm_plot_1110 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+# Land Use Distribution Plot 
+lu_1110_plot <- ggplot(lu_area_1110_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "Kennedy Community of Schools (Juri: 1110) Land Use Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+print(lu_1110_plot)
+
+# Sediment Plot 
+lu_1110_sed <- ggplot(lu_area_1110_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Sediment (tons/year)", 
+       title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+print(lu_1110_sed)
+
+
+# Nitrogen Plot 
+lu_1110_n <- ggplot(lu_area_1110_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Nitrogen Flux (lbs/year)", 
+       title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none")
+print(lu_1110_n)
+
+
+#Combined Plot 
+combined_1110  <- (lu_1110_plot / lu_1110_sed / lu_1110_n) + plot_layout(ncol = 1)
+ggsave(here(sm_1110_folder, "lu_plot_1110.png"), combined_1110, height = 12, width = 6, dpi = 300)
+```
 
 ### 1061 - Dorsey High School
 
 Subbasin 1061 modeled for Dorsey High School (Jurished: 106149, City: Los Angeles).
+
+#### Landuse
 
 **Create CSV File**
 
@@ -981,9 +2477,86 @@ landuse_deluid_1061 <- read_excel(here(sm_1061_folder,
 #          row.names = FALSE)
 ```
 
-#### Loading
+```{r}
+sm_lu_1061_raw <- read.csv(here(sm_1061_folder, 
+                                "landuse_sm_1061.csv"))
 
-#### Landuse
+sm_deluid_1061 <- read.csv(here(sm_1061_folder, 
+                                "landuse_deluid_1061.csv"))
+
+unique(sm_lu_1061_raw$deluid)
+
+sm_lu_1061_clean <- sm_lu_1061_raw |>
+  pivot_wider(id_cols = c(subbasin, deluid),
+              names_from = parmname,
+              values_from = value1)
+
+names(sm_lu_1061_clean)
+names(sm_deluid_1061)
+intersect(names(sm_lu_1061_clean), names(sm_deluid_1061))
+
+sm_lu_1061_join <- sm_lu_1061_clean |>
+  left_join(sm_deluid_1061, by = c("subbasin", "deluid")) |>
+  clean_names() |>
+  filter(subbasin == 1061)
+
+nrow(sm_lu_1061_clean)
+nrow(sm_lu_1061_join)
+
+sum(is.na(sm_lu_1061_join[[names(sm_deluid_1061)[3]]]))
+
+# Categorize the delineations into main classes for easier data manipulation
+sm_plot_1061 <- classify_landuse(sm_lu_1061_join) 
+```
+
+```{r}
+# Summary Statistics 
+lu_area_1061_sum <- sm_plot_1061 |>
+  group_by(main_class) |>
+  summarise(total_area = sum(area, na.rm = TRUE),
+            total_avg_sed = sum(sedload, na.rm = TRUE),
+            total_avg_n = sum(po_tn, na.rm = TRUE))
+
+# Land Use Distribution Plot 
+lu_1061_plot <- ggplot(lu_area_1061_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(x = "Land Use", y = "Total Area (acres)", 
+       title = "Kennedy Community of Schools (Juri: 1061) Land Use Distribution") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+print(lu_1061_plot)
+
+# Sediment Plot 
+lu_1061_sed <- ggplot(lu_area_1061_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Sediment (tons/year)", 
+       title = "Average Sediment Loading 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        legend.position = "none", 
+        axis.title.x = element_blank())
+print(lu_1061_sed)
+
+
+# Nitrogen Plot 
+lu_1061_n <- ggplot(lu_area_1061_sum, aes(x = main_class, y = total_avg_n, fill = main_class)) +
+  geom_col() +
+  scale_fill_manual(values = landuse_colors) +
+  labs(y = "Average Nitrogen Flux (lbs/year)", 
+       title = "Average Nitrogen Flux 2008-2018") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none")
+print(lu_1061_n)
+
+
+#Combined Plot 
+combined_1061  <- (lu_1061_plot / lu_1061_sed / lu_1061_n) + plot_layout(ncol = 1)
+ggsave(here(sm_1061_folder, "lu_plot_1061.png"), combined_1061, height = 12, width = 6, dpi = 300)
+```
 
 ## San Gabriel Watershed
 
