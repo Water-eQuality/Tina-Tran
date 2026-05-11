@@ -29,6 +29,7 @@ library(lubridate)
 library(slider)
 library(scales)
 library(janitor)
+library(patchwork)
 ```
 
 ## **Heal The Bay Brand Colors**
@@ -45,6 +46,11 @@ htb_colors <- c(
 # HTB Gradient 
 htb_gradient <- colorRampPalette(htb_colors)(11)
 htb_gradient 
+
+
+# Color Gradient for Graphs that are not FIB Parameters
+htb_brand_colors <- colorRampPalette(c("#263746", "#005CB9", "#40B4E5", "#00B6B6", "#8ACFCF"))
+htb_brand_colors(34)
 ```
 
 ## Mutate FIB Concentration & Precipitation Data
@@ -56,19 +62,23 @@ beach_data_2014_2024 <- read.csv(here("data","clean_master_beach_data_2014_2024.
 # Mutate the Beach Data 
 beach_clean <- beach_data_2014_2024 |>
   mutate(result_log = log10(result), # log 10 transform the data
-         sampledate = as.Date(sampledate), # change from chr to date
-          year = year(sampledate),  # extract year from sampledate
-          month = month(sampledate, label = TRUE, abbr = TRUE)) # extract month from sampledate
+         sample_date = as.Date(sample_date), # change from chr to date
+          year = year(sample_date),  # extract year from sampledate
+          month = month(sample_date, label = TRUE, abbr = TRUE)) # extract month from sampledate
 
 # Creating a summary of the annual log results of each fib parameter for each station
 beach_annual <- beach_clean |>
-  group_by(stationname, parameter, year, beachname) |>
+  group_by(station_name, parameter, year, beach_name) |>
   summarise(
     annual_mean_log = mean(result_log, na.rm = TRUE),
     annual_median_log = median(result_log, na.rm = TRUE),
     annual_variance_log = var(result_log, na.rm = TRUE),
     n_samples = n(),
     .groups = "drop")
+
+# Count Sample numbers for 99 stations
+station_count <- beach_clean |>
+  count(station_name)
 ```
 
 ```{r}
@@ -79,6 +89,7 @@ precip_2014_2024 <- read.csv(here("data","precipitation_clean_2014_2024.csv"))
 precip_clean <- precip_2014_2024 |>
   mutate(date = as.Date(date), # Change date from chr to date
          year = year(date), # extract the year from the date
+         day = day(date), # extract the day from the date
          month = month(date, label = TRUE, abbr = TRUE), # extract month from the date
          wet = prcp_in > 0.1) # defines wet weather as >0.1 inches
 
@@ -104,13 +115,8 @@ join_fib_prcp_bin <- join_prcp_fib_data |>
   mutate(rain_bin = cut(total_rain_in,
                         breaks = 4, 
                         labels = c("Low", "Moderate", "High", "Very High")))
-```
 
-# Precipitation
 
-## Total Annual Precipitation
-
-```{r}
 # Create a summary of the precipitation for each year 
 rain_summary_table <- precip_clean|>
   group_by(year) |>
@@ -122,7 +128,15 @@ summarize(var=var(prcp_in),
             IQ75_rain = quantile(prcp_in, probs = 0.75),
             max_rain = max(prcp_in))
 rain_summary_table 
+```
 
+# Precipitation
+
+## Total Annual Precipitation
+
+This code calculates the total annual rainfall in each year from 2014-2024.
+
+```{r}
 # Calculate the average total rainfall over the 10 years
 mean_total_rain <- precip_annual |> 
   summarise(mean_rain_event = mean(total_rain_in), na.rm = TRUE) |>
@@ -132,23 +146,34 @@ mean_total_rain <- precip_annual |>
 rain_bar <- ggplot(precip_annual, 
                    aes(x = factor(year), y = total_rain_in)) +
   geom_col(fill = "#1479A9") + 
-    geom_hline(yintercept = mean_total_rain, linetype = "dashed", linewidth = 1, color = "black")+
+  geom_hline(yintercept = mean_total_rain, linetype = "dashed", linewidth = 1, color = "black")+ # average 10-yr rain
   labs(#title = "Total Annual Precipitation (2014–2024)",
     x = "Year",
     y = "Total Rainfall (inches)") +
-  theme_bw(base_size = 14)
-rain_bar
+  theme_minimal(base_size = 14)+
+  theme(plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.title.x = element_text(face = "bold", size = 12),
+    axis.title.y = element_text(face = "bold"),
+    legend.position = "none", 
+    panel.grid = element_blank())
+print(rain_bar)
 
 # Calculate the overall mean precipitation for all 10 years
 overall_mean_rain <- precip_clean |> 
   summarise(mean_rain_Event = mean(prcp_in), na.rm = TRUE)
 overall_mean_rain
 
+# Save the plot
+  # Save the PNG 
+#ggsave(filename = here("outputs", "precip_only", 
+#                       "total_rain_bar.png"),
+#  plot = rain_bar, width = 9, height = 5,dpi = 400)
+
 ```
 
 ## Monthly Average Rainfall
 
-This code will total the amount of rainfall for each month for each year.
+This code will sum the amount of rainfall for each month for each year from 2014-2024.
 
 ```{r}
 # Create the data frame
@@ -168,7 +193,8 @@ precip_monthly_plot <- ggplot(precip_monthly,
   theme_bw(base_size = 14) +
   theme(
     strip.text = element_text(size = 12, face = "bold"),
-    axis.text.x = element_text(angle = 90, vjust = 0.5))
+    axis.text.x = element_text(angle = 90, vjust = 0.5),
+    panel.grid = element_blank())
 precip_monthly_plot
 
 # Save the bar graph
@@ -176,118 +202,737 @@ precip_monthly_plot
      # plot = precip_monthly_plot, width = 14, height = 8, dpi = 500)
 ```
 
-# E. coli v Rain
+## Wet Period Analysis
 
-**Question to answer:** **How does total rainfall relate to annual FIB concentrations?**
-
-Each plot represents a monitoring station for a specific year. The annual median e.coli concentrations were calculated for each monitoring site per year, and joined to the precipitation data's total rainfall data in inches.
-
-There is a lot of variability in the annual median e.coli concentrations and understanding its relationship with the rainfall visually.
+**Read the Wet Period & Dry Period Data Into the Script**
 
 ```{r}
-# Filter out E.coli
-join_ecoli <- join_prcp_fib_data |>
-  filter(parameter == "E. Coli")
+# Wet Period Dataset
+# Read the file
+beach_data_wet_period <- read.csv(here("data","beach_data_wet_period.csv")) 
 
-ecoli_prcp_med_point <- ggplot(join_ecoli, 
-    aes(x = total_rain_in,
-        y = annual_median_log,
-        color = factor(year),       # year shown as color
-        shape = stationname)) +     # station shown as shape
-  geom_point(alpha = 0.8, size = 3) +
-  labs(
-    title = "Annual Median E. Coli vs Rainfall by Year and Station",
-    x = "Total Annual Rainfall (inches)",
-    y = "Median Log10 E. Coli Concentration",
-    color = "Year",
-    shape = "Station"
-  ) +
-  theme_bw(base_size = 14)
-ecoli_prcp_med_point
+# Edit the data
+beach_wet_fib <- beach_data_wet_period |>
+  mutate(result_log = log10(result), # log10 the results
+         sample_date = as.numeric(as.Date(sample_date)), # make sample date into a date
+         year = year(as.Date(sample_date))) # extract year out of the sample_date
+
+# Double checking how many unique parameters there are (4 total)
+unique(beach_wet_fib$parameter)
+
+
+
+# Dry Period Dataset
+# Read the file
+beach_data_dry_period <- read.csv(here("data","beach_data_dry_period.csv")) 
+
+# Edit the data
+beach_dry_fib <- beach_data_dry_period |>
+  mutate(result_log = log10(result), # log10 the results
+         sample_date = as.numeric(as.Date(sample_date)),  # make sample date into a date
+         year = year(as.Date(sample_date))) # extract year out of the sample_date
+
+# Double checking how many unique parameters there are (4 total)
+unique(beach_dry_fib$parameter)
 ```
 
-## Variance of E. Coli v Rain
+### **Enterococcus EDA - Wet**
 
 ```{r}
-# Scatter Plot of annual variance E.Coli vs rainfall
-ecoli_prcp_var_point <- ggplot(join_ecoli, 
-    aes(x = total_rain_in,
-        y = annual_variance_log)) +
-  geom_point(alpha = 0.7, size = 2, color = "#40B4EB") +
-  labs(
-    title = "Annual Variance E. Coli Concentrations vs Total Rainfall",
-    x = "Total Annual Rainfall (inches)",
-    y = "Varaince Log10 E. Coli Concentration"
-  ) +
-  theme_bw(base_size = 14)
-ecoli_prcp_var_point
-
-# Note there are 5 NA values for variance because there was only 1 sample
-```
-
-Box plot vision create a min, IQ25, median, IQ75, max of the annual median values of each, group by year
-
-## Enterococcus v Rain Hydrograph
-
-```{r}
-# Filter out Enterococcus
-join_enterococcus <- join_prcp_fib_data |>
+# Create a separate data set for Enterococcus
+wet_fib_enterococcus <- beach_wet_fib |>
   filter(parameter == "Enterococcus")
 
+# Checking how many unit types exist 
+unique(wet_fib_enterococcus$unit)
+# 2 exist - "MPN/100ml" "CFU/100ml"
 
-# Scatter Plot of annual median Enterococcus vs Total rainfall
-entero_prcp_med_point <- ggplot(join_enterococcus, 
-    aes(x = total_rain_in,
-        y = annual_median_log)) +
-  geom_point(alpha = 0.7, size = 2, color = "#40B4EB") +
-  labs(
-    title = "Annual Median Enterococcus Concentrations vs Rainfall",
-    x = "Total Annual Rainfall (inches)",
-    y = "Median Log10 Enterococcus Concentration"
-  ) +
-  theme_bw(base_size = 14)
-entero_prcp_med_point
+# Checking to see how many beaches sampled for Enterococcus
+unique(wet_fib_enterococcus$beach_name)
+# 34 beaches appear
+
+
+# Box and Whisker Plot for Enterococcus only For Each Beach
+wet_fib_entero_plot <- wet_fib_enterococcus |>
+  ggplot(aes(x = result_log, y = beach_name, fill = beach_name)) +
+  geom_boxplot(show.legend = FALSE) + # no legend
+  scale_fill_manual(values = htb_brand_colors(length(unique(wet_fib_enterococcus$beach_name)))) + # fill based on brand colors 
+  facet_wrap(~ year, ncol = 11) + # have 11 columns for each year
+  labs(title = "Wet Period Enterococcus Concentrations", 
+       x = "Log 10 Transformed Enterococcus Concentration",
+       y = "Beach Name") +
+  theme_minimal(base_size = 14) +
+  theme(
+    strip.text = element_text(face = "bold"), # bold the text
+    panel.grid.minor = element_blank(), # remove the minor grid marks
+    panel.grid.major.y = element_blank(), # remove the major grid marks for y-axis
+    panel.background = element_rect(fill = "white", color = NA))
+print(wet_fib_entero_plot)
+
+# Save the plot
+# ggsave(here("outputs", "wet_fib_entero_plot.png"), width = 25, height = 15, dpi = 400)
 ```
 
-## Total Coliforms v Rain Hydrograph
+### **E.Coli EDA - Wet**
 
 ```{r}
-# Filter out Total Coliforms
-join_total_coliforms <- join_prcp_fib_data |>
-  filter(parameter == "Total Coliforms")
+# Created a separate data frame for E.Coli Data
+wet_fib_ecoli <- beach_wet_fib |>
+  filter(parameter == "E. Coli") 
 
+# Checking how many unit types exist 
+unique(wet_fib_ecoli$unit)
+# 1 exist - "MPN/100ml" 
 
-# Scatter Plot of annual median Total Coliforms vs Total rainfall
-tot_prcp_med_point <- ggplot(join_total_coliforms, 
-    aes(x = total_rain_in,
-        y = annual_median_log)) +
-  geom_point(alpha = 0.7, size = 2, color = "#40B4EB") +
-  labs(
-    title = "Annual Median Total Coliforms Concentrations vs Rainfall",
-    x = "Total Annual Rainfall (inches)",
-    y = "Median Log10 Total Coliforms Concentration"
-  ) +
-  theme_bw(base_size = 14)
-tot_prcp_med_point
+# Check How Many Beaches Sampled E.Coli 
+unique(wet_fib_ecoli$beach_name)
+# 28 beaches that have e.coli data 
+
+# Box and Whisker Plot for E. Coli only For Each Beach
+wet_fib_ecoli_plot <- wet_fib_ecoli |>
+  ggplot(aes(x = result_log, y = beach_name, fill = beach_name)) +
+  geom_boxplot(show.legend = FALSE) + # no legend
+  scale_fill_manual(values = htb_brand_colors(length(unique(wet_fib_ecoli$beach_name)))) + # fill based on brand colors 
+  facet_wrap(~ year, ncol = 11) + # have 11 columns for each year
+  labs(title = "Wet Period E. Coli Concentrations",
+       x = "Log 10 Transformed E.Coli Concentration", 
+       y = "Beach Name") +
+  theme_minimal(base_size = 14) +
+  theme(
+    strip.text = element_text(face = "bold"), # bold the text
+    panel.grid.minor = element_blank(), # remove the minor grid marks
+    panel.grid.major.y = element_blank(), # remove the major grid marks for y-axis
+    panel.background = element_rect(fill = "white", color = NA))
+print(wet_fib_ecoli_plot)
+
+# Save the plot
+# ggsave(here("outputs", "wet_fib_ecoli_plot.png"), width = 25, height = 15, dpi = 400)
 ```
 
-## Fecal Coliforms v Rain Hydrograph
+### **Total Coliforms EDA - Wet**
 
 ```{r}
-# Filter out Enterococcus
-join_fecal_coliforms <- join_prcp_fib_data |>
-  filter(parameter == "Fecal Coliforms")
+# Created a separate data frame for Total Coliforms data
+wet_fib_total_coliforms <- beach_wet_fib |>
+  filter(parameter == "Total Coliforms") 
+
+# Checking how many unit types exist 
+unique(wet_fib_total_coliforms$unit)
+# 2 exist - "MPN/100ml" "CFU/100ml" 
+
+# Check How Many Beaches Sampled Total Coliforms 
+unique(wet_fib_total_coliforms$beach_name)
+# 34 beaches that have total coliforms data 
+
+# Box and Whisker Plot for Total Coliforms only For Each Beach
+wet_fib_tot_coli_plot <- wet_fib_total_coliforms |>
+  ggplot(aes(x = result_log, y = beach_name,fill = beach_name)) +
+  geom_boxplot(show.legend = FALSE) + # no legend
+  scale_fill_manual(values = htb_brand_colors(length(unique(wet_fib_total_coliforms$beach_name)))) + # fill based on brand colors 
+  facet_wrap(~ year, ncol = 11) + # have 11 columns for each year
+  labs(title = "Wet Period Total Coliforms Concentrations",
+  x = "Log 10 Transformed Total Coliforms Concentration",
+  y = "Beach Name") +
+  theme_minimal(base_size = 14) +
+  theme(
+    strip.text = element_text(face = "bold"), # bold the text
+    panel.grid.minor = element_blank(), # remove the minor grid marks
+    panel.grid.major.y = element_blank(), # remove the major grid marks for y-axis
+    panel.background = element_rect(fill = "white", color = NA))
+print(wet_fib_tot_coli_plot)
+
+# Save the plot
+#ggsave(here("outputs", "wet_fib_tot_coli_plot.png"), width = 25, height = 15, dpi = 400)
+```
+
+### **Fecal Coliforms EDA - Wet**
+
+```{r}
+# Created a separate data frame for Fecal Coliforms data 
+wet_fib_fecal_coliforms <- beach_wet_fib |>
+  filter(parameter == "Fecal Coliforms") 
+
+# Checking how many unit types exist 
+unique(wet_fib_fecal_coliforms$unit)
+# 2 exist - "MPN/100ml" "CFU/100ml" 
+
+# Check How Many Beaches Sampled Fecal Coliforms
+unique(wet_fib_fecal_coliforms$beach_name)
+# 33 beaches that have total coliforms data 
+
+# Box and Whisker Plot for Fecal Coliforms only For Each Beach
+wet_fib_fec_coli_plot <- wet_fib_fecal_coliforms |>
+  ggplot(aes(x = result_log, y = beach_name,fill = beach_name)) + 
+  geom_boxplot(show.legend = FALSE) + # no legend
+  scale_fill_manual(values = htb_brand_colors(length(unique(wet_fib_fecal_coliforms$beach_name)))) + # fill based on brand colors 
+  facet_wrap(~ year, ncol = 11) + # have 11 columns for each year
+  labs(title = "Wet Period Fecal Coliforms Concentrations",
+       x = "Log 10 Transformed Fecal Coliforms Concentration",
+    y = "Beach Name") +
+  theme_minimal(base_size = 14) +
+  theme(
+   strip.text = element_text(face = "bold"), # bold the text
+    panel.grid.minor = element_blank(), # remove the minor grid marks
+    panel.grid.major.y = element_blank(), # remove the major grid marks for y-axis
+    panel.background = element_rect(fill = "white", color = NA))
+print(wet_fib_fec_coli_plot)
+
+# Save the plot
+#ggsave(here("outputs", "wet_fib_fec_coli_plot.png"), width = 25, height = 15, dpi = 400)
+```
+
+## Dry Period Analysis
+
+### **Enterococcus EDA - Dry**
+
+```{r}
+# Create a separate data set for Enterococcus Data
+dry_fib_enterococcus <- beach_dry_fib |>
+  filter(parameter == "Enterococcus")
+
+# Checking how many unit types exist 
+unique(dry_fib_enterococcus$unit)
+# 2 exist - "MPN/100ml" "CFU/100ml"
+
+# Checking to see how many beaches sampled for Enterococcus
+unique(dry_fib_enterococcus$beach_name)
+# 34 beaches appear
 
 
-# Scatter Plot of annual median E.Coli vs rainfall
-fec_prcp_med_point <- ggplot(join_fecal_coliforms, 
-    aes(x = total_rain_in,
-        y = annual_median_log)) +
-  geom_point(alpha = 0.7, size = 2, color = "#40B4EB") +
-  labs(
-    title = "Annual Median Fecal Coliforms Concentrations vs Rainfall",
-    x = "Total Annual Rainfall (inches)",
-    y = "Median Log10 Fecal Coliforms Concentration") +
-  theme_bw(base_size = 14)
-fec_prcp_med_point
+# Box and Whisker Plot for Enterococcus only For Each Beach
+dry_fib_entero_plot <- dry_fib_enterococcus |>
+  ggplot(aes(x = result_log, y = beach_name,fill = beach_name)) +
+  geom_boxplot(show.legend = FALSE) + # no legend
+  scale_fill_manual(values = htb_brand_colors(length(unique(dry_fib_enterococcus$beach_name)))) + # fill based on brand colors 
+  facet_wrap(~ year, ncol = 11) + # have 11 columns for each year
+  labs(title = "Dry Period Enterococcus Concentrations",
+       x = "Log 10 Transformed Enterococcus Concentration",
+    y = "Beach Name") +
+  theme_minimal(base_size = 14) +
+  theme(
+    strip.text = element_text(face = "bold"), # bold the text
+    panel.grid.minor = element_blank(), # remove the minor grid marks
+    panel.grid.major.y = element_blank(), # remove the major grid marks for y-axis
+    panel.background = element_rect(fill = "white", color = NA))
+print(dry_fib_entero_plot)
+
+# Save the plot
+#ggsave(here("outputs", "dry_fib_entero_plot.png"), width = 25, height = 15, dpi = 400)
+```
+
+### **E.Coli EDA - Dry**
+
+```{r}
+# Created a separate data frame for E.Coli Data
+dry_fib_ecoli <- beach_dry_fib |>
+  filter(parameter == "E. Coli") 
+
+# Checking how many unit types exist 
+unique(dry_fib_ecoli$unit)
+# 1 exist - "MPN/100ml" 
+
+# Check How Many Beaches Sampled E.Coli 
+unique(dry_fib_ecoli$beach_name)
+# 28 beaches that have e.coli data 
+
+# Box and Whisker Plot for E. Coli only For Each Beach
+dry_fib_ecoli_plot <- dry_fib_ecoli |>
+  ggplot(aes(x = result_log, y = beach_name, fill = beach_name)) +
+  geom_boxplot(show.legend = FALSE) + # no legend
+  scale_fill_manual(values = htb_brand_colors(length(unique(dry_fib_ecoli$beach_name)))) + # fill based on brand colors 
+  facet_wrap(~ year, ncol = 11) + # have 11 columns for each year
+  labs(title = "Dry Period E. Coli Concentrations",
+       x = "Log 10 Transformed E.Coli Concentration",
+    y = "Beach Name") +
+  theme_minimal(base_size = 14) +
+  theme(
+    strip.text = element_text(face = "bold"), # bold the text
+    panel.grid.minor = element_blank(), # remove the minor grid marks
+    panel.grid.major.y = element_blank(), # remove the major grid marks for y-axis
+    panel.background = element_rect(fill = "white", color = NA))
+print(dry_fib_ecoli_plot)
+
+# Save the plot
+#ggsave(here("outputs", "dry_fib_ecoli_plot.png"), width = 25, height = 15, dpi = 400)
+```
+
+### **Total Coliforms EDA - Dry**
+
+```{r}
+# Created a separate data frame for Total Coliforms data
+dry_fib_total_coliforms <- beach_dry_fib |>
+  filter(parameter == "Total Coliforms") 
+
+# Checking how many unit types exist 
+unique(dry_fib_total_coliforms$unit)
+# 2 exist - "MPN/100ml" "CFU/100ml" 
+
+# Check How Many Beaches Sampled Total Coliforms 
+unique(dry_fib_total_coliforms$beach_name)
+# 34 beaches that have total coliforms data 
+
+# Box and Whisker Plot for Total Coliforms only For Each Beach
+dry_fib_tot_coli_plot <- dry_fib_total_coliforms |>
+  ggplot(aes(x = result_log, y = beach_name,fill = beach_name)) +
+  geom_boxplot(show.legend = FALSE) + # no legend
+  scale_fill_manual(values = htb_brand_colors(length(unique(dry_fib_total_coliforms$beach_name)))) + # fill based on brand colors 
+  facet_wrap(~ year, ncol = 11) + # have 11 columns for each year
+  labs(title = "Dry Period Total Coliforms Concentrations",
+       x = "Log 10 Transformed Total Coliforms Concentration",
+    y = "Beach Name") +
+  theme_minimal(base_size = 14) +
+  theme(
+    strip.text = element_text(face = "bold"), # bold the text
+    panel.grid.minor = element_blank(), # remove the minor grid marks
+    panel.grid.major.y = element_blank(), # remove the major grid marks for y-axis
+    panel.background = element_rect(fill = "white", color = NA))
+print(dry_fib_tot_coli_plot)
+
+# Save the plot
+#ggsave(here("outputs", "dry_fib_tot_coli_plot.png"), width = 25, height = 15, dpi = 400)
+```
+
+### **Fecal Coliforms EDA - Dry**
+
+```{r}
+# Created a separate data frame for Fecal Coliforms data 
+dry_fib_fecal_coliforms <- beach_dry_fib |>
+  filter(parameter == "Fecal Coliforms") 
+
+# Checking how many unit types exist 
+unique(dry_fib_fecal_coliforms$unit)
+# 2 exist - "MPN/100ml" "CFU/100ml" 
+
+# Check How Many Beaches Sampled Fecal Coliforms
+unique(dry_fib_fecal_coliforms$beach_name)
+# 33 beaches that have total coliforms data 
+
+# Box and Whisker Plot for Fecal Coliforms only For Each Beach
+dry_fib_fec_coli_plot <- dry_fib_fecal_coliforms |>
+  ggplot(aes(x = result_log, y = beach_name,fill = beach_name)) +
+  geom_boxplot(show.legend = FALSE) + # no legend
+  scale_fill_manual(values = htb_brand_colors(length(unique(dry_fib_fecal_coliforms$beach_name)))) + # fill based on brand colors 
+  facet_wrap(~ year, ncol = 11) + # have 11 columns for each year
+  labs(x = "Log 10 Transformed Fecal Coliforms Concentration",
+    y = "Beach Name") +
+  theme_minimal(base_size = 14) +
+  theme(
+    strip.text = element_text(face = "bold"), # bold the text
+    panel.grid.minor = element_blank(), # remove the minor grid marks
+    panel.grid.major.y = element_blank(), # remove the major grid marks for y-axis
+    panel.background = element_rect(fill = "white", color = NA))
+print(dry_fib_fec_coli_plot)
+
+# Save the plot
+#ggsave(here("outputs", "dry_fib_fec_coli_plot.png"), width = 25, height = #15, dpi = 400)
+```
+
+# Hydrographs 
+
+[**Goal:**]{.underline} Create a hydrograph to understand changes in precipitation in relation to FIB concentrations throughout the 10 years (2014-2024) across 99 monitoring sites.
+
+```{r}
+# Create 4 new datasets where FIB data is joined with precipitation by date
+# E.Coli
+ecoli_precip <- beach_clean |> 
+  filter(parameter == "E. Coli") |>
+  left_join(precip_clean, by = c("sample_date" = "date", 
+                                 "year" = "year",
+                                 "month" = "month")) 
+# Check
+glimpse(ecoli_precip) #24,375 rows, 25 columns
+
+
+# Enterococcus
+entero_precip <- beach_clean |>
+  filter(parameter == "Enterococcus") |>
+  left_join(precip_clean, by = c("sample_date" = "date", 
+                                 "year" = "year",
+                                 "month" = "month")) 
+# Check
+glimpse(entero_precip) #69,307 rows, 25 columns
+
+
+# Fecal Coliforms
+fecal_precip <- beach_clean |>
+  filter(parameter == "Fecal Coliforms") |>
+  left_join(precip_clean, by = c("sample_date" = "date", 
+                                 "year" = "year",
+                                 "month" = "month")) 
+# Check
+glimpse(fecal_precip) #44,686 rows, 25 columns
+
+
+# Total Coliforms
+total_precip <- beach_clean |>
+  filter(parameter == "Total Coliforms") |>
+  left_join(precip_clean, by = c("sample_date" = "date", 
+                                 "year" = "year",
+                                 "month" = "month")) 
+# Check
+glimpse(total_precip) #70,127 rows, 25 columns
+```
+
+## E. Coli
+
+This code creates a hydrograph for the E. coli concentrations for each monitoring station (n = 99). The x axis is the sample date, the y-axis on the left is the log10 concentration of E. coli, and the y-axis on the right is the precipitation amount in inches.
+
+```{r}
+# Create the graph 
+# Maximum E. coli concentration
+top_ecoli_line <- max(ecoli_precip$result_log, na.rm = TRUE)
+
+# Scale precipitation to fit plot
+scale_factor <- top_ecoli_line / max(ecoli_precip$prcp_in, na.rm = TRUE)
+
+
+# Split data by station 
+station_list <- split(ecoli_precip, ecoli_precip$station_name)
+
+# Loop through each station 
+walk(names(station_list), function(station) {
+  
+  # Extract that station's data
+  station_df <- station_list[[station]] |>
+    arrange(sample_date) # Ensures that the sampledate column is in chronological order
+  
+# Hydrograph
+ecoli_hydrograph <- ggplot(station_df,
+                           aes(x = sample_date)) +
+
+  # E. coli concentrations
+  geom_line(aes(y = result_log),
+            color = "#40B4EB",
+            linewidth = 0.4,
+            alpha = 0.7) +
+
+  geom_point(aes(y = result_log),
+             color = "#40B4EB",
+             size = 0.5,
+             alpha = 0.6) +
+
+  # Flipped precipitation spikes
+  geom_segment(aes(
+    x = sample_date,
+    xend = sample_date,
+    y = top_ecoli_line,
+    yend = top_ecoli_line - prcp_in * scale_factor),
+  color = "black", alpha = 0.5, linewidth = 0.3) +
+
+  # Precipitation points
+  geom_point(aes(
+    y = top_ecoli_line - prcp_in * scale_factor),
+  color = "black", size = 0.3, alpha = 0.5) +
+
+
+  # Dual y-axis
+  scale_y_continuous(
+    name = expression(Log[10] ~ "E. Coli Concentration"),
+
+    sec.axis = sec_axis(
+      trans = ~ (top_ecoli_line - .) / scale_factor,
+      name = "Daily Precipitation (in)")) +
+
+  # Date formatting
+  scale_x_date(
+    date_breaks = "1 year",
+    date_labels = "%Y",
+    expand = c(0, 0)) +
+
+  # Theme
+  labs(title = paste("E. Coli Hydrographs:", station),
+    x = "Sample Date") +
+  theme_minimal(base_size = 12) +
+  theme( axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      size = 6),
+
+    axis.title.y = element_text(color = "black"),
+
+    axis.title.y.right = element_text(
+      color = "black"),
+    panel.grid.minor = element_blank(),
+    legend.position = "none")
+
+print(ecoli_hydrograph)
+
+
+# Save the plots
+#ggsave(filename = here("outputs", "hydrographs", "ecoli", paste0(gsub("[^A-Za-z0-9]", "_", station), "_ecoli_hydrograph.png")),
+#  plot = ecoli_hydrograph, width = 15, height = 8, dpi = 300)
+})
+```
+
+## Enterococcus
+
+This code creates a hydrograph for the E. coli concentrations for each monitoring station (n = 99). The x axis is the sample date, the y-axis on the left is the log10 concentration of Enterococcus, and the y-axis on the right is the precipitation amount in inches.
+
+```{r}
+# Create the graph 
+# Maximum Enterococcus concentration
+top_entero_line <- max(entero_precip$result_log, na.rm = TRUE)
+
+# Scale precipitation to fit plot
+scale_factor <- top_entero_line / max(entero_precip$prcp_in, na.rm = TRUE)
+
+
+# Split data by station 
+station_list <- split(entero_precip, entero_precip$station_name)
+
+# Loop through each station 
+walk(names(station_list), function(station) {
+  
+  # Extract that station's data
+  station_df <- station_list[[station]] |>
+    arrange(sample_date) # Ensures that the sampledate column is in chronological order
+  
+# Hydrograph
+entero_hydrograph <- ggplot(station_df,
+                           aes(x = sample_date)) +
+
+  # E. coli concentrations
+  geom_line(aes(y = result_log),
+            color = "#2D94C8",
+            linewidth = 0.4,
+            alpha = 0.7) +
+
+  geom_point(aes(y = result_log),
+             color = "#2D94C8",
+             size = 0.5,
+             alpha = 0.6) +
+
+  # Flipped precipitation spikes
+  geom_segment(aes(
+    x = sample_date,
+    xend = sample_date,
+    y = top_entero_line,
+    yend = top_entero_line - prcp_in * scale_factor),
+  color = "black", alpha = 0.5, linewidth = 0.3) +
+
+  # Precipitation points
+  geom_point(aes(
+    y = top_entero_line - prcp_in * scale_factor),
+  color = "black", size = 0.3, alpha = 0.5) +
+
+
+  # Dual y-axis
+  scale_y_continuous(
+    name = expression(Log[10] ~ "Enterococcus Concentration"),
+
+    sec.axis = sec_axis(
+      trans = ~ (top_entero_line - .) / scale_factor,
+      name = "Daily Precipitation (in)")) +
+
+  # Date formatting
+  scale_x_date(
+    date_breaks = "1 year",
+    date_labels = "%Y",
+    expand = c(0, 0)) +
+
+  # Theme
+  labs(title = paste("Enterococcus Hydrographs:", station),
+    x = "Sample Date") +
+  theme_minimal(base_size = 12) +
+  theme( axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      size = 6),
+
+    axis.title.y = element_text(color = "black"),
+
+    axis.title.y.right = element_text(
+      color = "black"),
+    panel.grid.minor = element_blank(),
+    legend.position = "none")
+
+print(entero_hydrograph)
+
+
+# Save the plots
+#ggsave(filename = here("outputs", "hydrographs", "enterococcus", paste0(gsub("[^A-Za-z0-9]", "_", station), "_entero_hydrograph.png")),
+#  plot = entero_hydrograph, width = 15, height = 8, dpi = 300)
+})
+```
+
+## Total Coliforms
+
+This code creates a hydrograph for the E. coli concentrations for each monitoring station (n = 99). The x axis is the sample date, the y-axis on the left is the log10 concentration of total coliforms, and the y-axis on the right is the precipitation amount in inches.
+
+```{r}
+# Create the graph 
+# Maximum Total Coliforms concentration
+top_total_line <- max(total_precip$result_log, na.rm = TRUE)
+
+# Scale precipitation to fit plot
+scale_factor <- top_total_line / max(total_precip$prcp_in, na.rm = TRUE)
+
+
+# Split data by station 
+station_list <- split(total_precip, total_precip$station_name)
+
+# Loop through each station 
+walk(names(station_list), function(station) {
+  
+  # Extract that station's data
+  station_df <- station_list[[station]] |>
+    arrange(sample_date) # Ensures that the sampledate column is in chronological order
+  
+# Hydrograph
+total_hydrograph <- ggplot(station_df,
+                           aes(x = sample_date)) +
+
+  # Total Coliforms concentrations
+  geom_line(aes(y = result_log),
+            color = "#8FA9B9",
+            linewidth = 0.4,
+            alpha = 0.7) +
+
+  geom_point(aes(y = result_log),
+             color = "#8FA9B9",
+             size = 0.5,
+             alpha = 0.6) +
+
+  # Flipped precipitation spikes
+  geom_segment(aes(
+    x = sample_date,
+    xend = sample_date,
+    y = top_total_line,
+    yend = top_total_line - prcp_in * scale_factor),
+  color = "black", alpha = 0.5, linewidth = 0.3) +
+
+  # Precipitation points
+  geom_point(aes(
+    y = top_total_line - prcp_in * scale_factor),
+  color = "black", size = 0.3, alpha = 0.5) +
+
+
+  # Dual y-axis
+  scale_y_continuous(
+    name = expression(Log[10] ~ "Total Coliforms Concentration"),
+
+    sec.axis = sec_axis(
+      trans = ~ (top_total_line - .) / scale_factor,
+      name = "Daily Precipitation (in)")) +
+
+  # Date formatting
+  scale_x_date(
+    date_breaks = "1 year",
+    date_labels = "%Y",
+    expand = c(0, 0)) +
+
+  # Theme
+  labs(title = paste("Total Coliforms Hydrographs:", station),
+    x = "Sample Date") +
+  theme_minimal(base_size = 12) +
+  theme( axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      size = 6),
+
+    axis.title.y = element_text(color = "black"),
+
+    axis.title.y.right = element_text(
+      color = "black"),
+    panel.grid.minor = element_blank(),
+    legend.position = "none")
+
+print(total_hydrograph)
+
+
+# Save the plots
+#ggsave(filename = here("outputs", "hydrographs", "total_coliforms", paste0(gsub("[^A-Za-z0-9]", "_", station), "_total_hydrograph.png")),
+#  plot = total_hydrograph, width = 15, height = 8, dpi = 300)
+})
+```
+
+## Fecal Coliforms
+
+This code creates a hydrograph for the E. coli concentrations for each monitoring station (n = 99). The x axis is the sample date, the y-axis on the left is the log10 concentration of fecal coliforms, and the y-axis on the right is the precipitation amount in inches.
+
+```{r}
+# Create the graph 
+# Maximum Fecal Coliforms concentration
+top_fecal_line <- max(fecal_precip$result_log, na.rm = TRUE)
+
+# Scale precipitation to fit plot
+scale_factor <- top_fecal_line / max(fecal_precip$prcp_in, na.rm = TRUE)
+
+
+# Split data by station 
+station_list <- split(fecal_precip, fecal_precip$station_name)
+
+# Loop through each station 
+walk(names(station_list), function(station) {
+  
+  # Extract that station's data
+  station_df <- station_list[[station]] |>
+    arrange(sample_date) # Ensures that the sampledate column is in chronological order
+  
+# Hydrograph
+fecal_hydrograph <- ggplot(station_df,
+                           aes(x = sample_date)) +
+
+  # Fecal Coliforms concentrations
+  geom_line(aes(y = result_log),
+            color = "#1479A9",
+            linewidth = 0.4,
+            alpha = 0.7) +
+
+  geom_point(aes(y = result_log),
+             color = "#1479A9",
+             size = 0.5,
+             alpha = 0.6) +
+
+  # Flipped precipitation spikes
+  geom_segment(aes(
+    x = sample_date,
+    xend = sample_date,
+    y = top_fecal_line,
+    yend = top_fecal_line - prcp_in * scale_factor),
+  color = "black", alpha = 0.5, linewidth = 0.3) +
+
+  # Precipitation points
+  geom_point(aes(
+    y = top_fecal_line - prcp_in * scale_factor),
+  color = "black", size = 0.3, alpha = 0.5) +
+
+
+  # Dual y-axis
+  scale_y_continuous(
+    name = expression(Log[10] ~ "Fecal Coliforms Concentration"),
+
+    sec.axis = sec_axis(
+      trans = ~ (top_fecal_line - .) / scale_factor,
+      name = "Daily Precipitation (in)")) +
+
+  # Date formatting
+  scale_x_date(
+    date_breaks = "1 year",
+    date_labels = "%Y",
+    expand = c(0, 0)) +
+
+  # Theme
+  labs(title = paste("Fecal Coliforms Hydrographs:", station),
+    x = "Sample Date") +
+  theme_minimal(base_size = 12) +
+  theme( axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      size = 6),
+
+    axis.title.y = element_text(color = "black"),
+
+    axis.title.y.right = element_text(
+      color = "black"),
+    panel.grid.minor = element_blank(),
+    legend.position = "none")
+
+print(fecal_hydrograph)
+
+
+# Save the plots
+#ggsave(filename = here("outputs", "hydrographs", "fecal_coliforms", paste0(gsub("[^A-Za-z0-9]", "_", station), "_fecal_hydrograph.png")),
+#  plot = fecal_hydrograph, width = 15, height = 8, dpi = 300)
+})
 ```

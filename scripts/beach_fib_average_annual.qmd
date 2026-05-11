@@ -276,20 +276,28 @@ beach_entero_mean_annual_plot <- ggplot(annual_enterococcus,
   labs(title = "Enterococcus",
     x = "Year",
     y = "Mean Log10 Concentration") +
-  ylim(0.5, 4)+
-  theme_bw(base_size = 14) +
+  #ylim(0.5, 4.0)+ # use this code for the patchwork
+  ylim(0.5, 2.25)+
+  theme_minimal(base_size = 14) +
   theme(
     strip.text = element_text(face = "bold", size = 12),
     plot.title = element_text(face = "bold", hjust = 0.5),
     axis.title.x = element_text(face = "bold"),
     axis.title.y = element_text(face = "bold"),
+    panel.grid = element_blank(),
     legend.position = "none")
 beach_entero_mean_annual_plot
 
 # Save the Plot 
-#ggsave(here("outputs", "beach_fib_average_annually", "beach_entero_annual_plot.png"),
-#  plot = beach_entero_mean_annual_plot, 
+#ggsave(here("outputs", "beach_fib_average_annually", #"beach_entero_annual_plot.png"),
+#       plot = beach_entero_mean_annual_plot, 
 #  width = 14, height = 8, dpi = 400)
+
+
+# Save Plot for Executive Summary
+ggsave(here("outputs", "beach_fib_average_annually", "es_beach_entero_annual_plot.png"),
+       plot = beach_entero_mean_annual_plot, 
+  width = 10, height = 8, dpi = 400)
 ```
 
 #### Median Enterococcus Concentration Across All Sites Annually

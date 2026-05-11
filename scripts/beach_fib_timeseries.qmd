@@ -47,6 +47,17 @@ unique(beach_clean$method) # checking the number of methods in data
 unique(beach_clean$unit) # checking the number of units in data
 ```
 
+```{r}
+# Count how many monitoring stations are at each beach 
+count_beach <- beach_clean |>
+  group_by(beach_name, station_name) |>
+  count()
+  #  summarise(num_stations = n_distinct(station_name))
+
+# Double check that there are 99 monitoring stations
+n_distinct(beach_clean$station_name)
+```
+
 **Heal The Bay Brand Colors For GGplot**
 
 This code assigns the the following colors to each FIB parameter: E. Coli, Enterococcus, Total Coliforms, and Fecal Coliforms.
@@ -323,12 +334,12 @@ walk(names(beach_list_exceed), function(beach) {
   # Create the plot with 4 panels (one per parameter)
   beach_plot_exceed <- ggplot(beach_df_exceed, aes(x = sample_date, y = log_result, color = parameter)) +
     geom_point(alpha = 0.6, size = 1.2) +
-    geom_hline(data = log_thresholds,
-             aes(yintercept = threshold),
-             inherit.aes = FALSE,
-             linetype = "dashed",
-             color = "red",
-             linewidth = 0.7) +
+    #geom_hline(data = log_thresholds,
+    #         aes(yintercept = threshold),
+    #         inherit.aes = FALSE,
+    #         linetype = "dashed",
+    #         color = "red",
+    #         linewidth = 0.7) +
       scale_color_manual(values = htb_colors) + # apply brand colors
     facet_wrap(~ parameter, scales = "fixed", nrow = 2) +  # 4 panels
     scale_x_date(
