@@ -69,8 +69,9 @@ For the purpose of estimating potential fecal indicator bacteria (FIB) loading i
 
 ## **Folder Pathways**
 
+**Park Recommendations**
+
 ```{r}
-# Park Recommendations
 # Locate the Dominguez Channel 2113 Folder
 dc_2113_folder <- here("data", "wmms", "park_rec", "dc_2113")
 
@@ -100,10 +101,11 @@ sm_1030_folder <- here("data", "wmms", "park_rec", "sm_1030")
 
 # Locate the Santa Monica 1077 Folder
 sm_1077_folder <- here("data", "wmms", "park_rec", "sm_1077")
+```
 
+**School Recommendations**
 
-
-#School Recommendations
+```{r}
 # Locate the Dominguez Channel 2034 Folder
 dc_2034_folder <- here("data", "wmms", "school_rec", "dc_2034")
 
@@ -211,7 +213,7 @@ jurisheds <- list(
                   file="juri_sm_1061.csv"))
 ```
 
-## **Loading Calculations**
+## **Loading Calcualtions**
 
 **Function**
 
@@ -876,67 +878,41 @@ print(reduce_plot_all)
 
 **Magnitude of Capture**
 
-The goal of this code is to show the magnitude of potential surface runoff volume reduced for an 85th percentile storm.
-
--   avg_suro_daily_flow_10_yr: represents the average surface runoff volume at the particular jurished where the recommended site is located in acre-ft/day
-
--   avg_suro_10_yr: represents the average surface runoff volume reduced at the particular jurished where the recommended site is located in acre-ft/day
+The goal of this code is to show the potentiial surface runoff volume reduced represented by the mean of the means for each wet day. We will use the column (avg_suro_10_yr)
 
 ```{r}
 # Join the data sets
 volume_magnitude <- load_avg_daily_10_yr |>
   left_join(juri_join, by = "jurished") |>
-  mutate(remaining_vol = avg_suro_daily_flow_10_yr - avg_suro_10yr)
+  mutate(remaining_vol = avg_suro_daily_flow_10_yr - avg_suro_10_yr)
 
 # Convert to get just the Average Surface Runoff Volume Reduced During a Wet Day Based on an 85th Percetile Storm Event 
 
 # Convert data for stacked bar graph
-volume_mag <- volume_magnitude |>
+volume_mag <- volume_magnitude|>
   select(general_name, 
-         avg_suro_10yr, # Mean of means average surface runoff potential reduction based on an 85th percentile storm 
-         remaining_vol) |>
-  pivot_longer(
-    cols = c(avg_suro_10yr, remaining_vol),
-    names_to = "type",
-    values_to = "volume"
-  )
+         avg_suro_daily_flow_10_yr, 
+         remaining_tn) |>
+  pivot_longer(cols = c(avg_suro_daily_flow_10_yr,# means of means total runoff volume daily 
+                        avg_suro_10_yr), # mean of means reduced runoff volume daily
+               names_to = "type",
+               values_to = "percent")
+
 
 # Plot Volume as a magnitude
-volume_plot <- ggplot(volume_mag,
-                      aes(x = reorder(general_name, volume),
-                          y = volume,
-                          fill = type)) +
-  geom_col(position = position_stack(reverse = TRUE),
-           width = 0.7) +
-  scale_fill_manual(
-    name = "Surface Outflow Volume",
-    labels = c("Potential Capture", "Remaining Volume"),
-    values = c("#8ACFCF","#005CB9")) +
-  labs(
-    x = "Recommended Sites",
-    y = "Average Daily Surface Outflow Volume (acre-ft/day)"
-  ) +
+volume_plot <- ggplot(volume_magnitude,
+       aes(x = reorder(general_name, avg_suro_10yr),
+           y = avg_suro_10yr)) +
+  geom_col(fill = "site_type") +
   coord_flip() +
+  labs(x = "Recommended Sites",
+    y = "Average Runoff Volume Reduction (ac-ft per wet day)") +
   theme_minimal() +
-  theme(
-    axis.text.y = element_text(size = 10),
-    axis.text.x = element_text(size = 10),
-    axis.title.x = element_text(size = 10),
-    axis.title.y = element_text(size = 10),
-    panel.grid.major.y = element_blank(),
-    panel.grid.minor.y = element_blank(),
-    legend.position = "top",
-    legend.title = element_text(size = 8),
-    legend.text = element_text(size = 8),
-    legend.margin = margin(b = -5),
-    legend.box.margin = margin(b = -5)
-  )
+  theme(legend.position = "top",
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank())
 
 print(volume_plot)
-
-# Save plot 
-ggsave(here("data", "wmms","volume_plot.png"),
-       volume_plot, height = 4, width = 6, dpi = 500)
 ```
 
 # Park Recommendations
@@ -2128,26 +2104,18 @@ lu_area_2034_sum <- dc_plot_2034 |>
             total_avg_n = sum(po_tn, na.rm = TRUE))
 
 # Landuse Type Distribution Plot 
-lu_2034_only_plot <- ggplot(lu_area_2034_sum, aes(x = main_class, y = total_area, fill = main_class)) +
+lu_2034_plot <- ggplot(lu_area_2034_sum, aes(x = main_class, y = total_area, fill = main_class)) +
   geom_col() +
   scale_fill_manual(values = landuse_colors) +
   labs(x = "Land Use", y = "Total Area (acres)", 
        title = "Gardena High School Land Use Distribution") +
   theme_minimal() +
-  theme(#axis.text.x = element_blank(),
-        axis.text.x = element_text(angle = 45,
-                                   hjust = 1, size = 8,
-                                   face = "bold"),
+  theme(axis.text.x = element_blank(),
+        #axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "none",
-        axis.text.y = element_text(face = "bold"),
-        panel.grid = element_blank())
+        axis.title.x = element_blank())
 
-print(lu_2034_only_plot)
-
-# Save the landuse graph 
-ggsave(here(dc_2034_folder, "lu_only_plot_2034.png"),
-       lu_2034_only_plot,
-       height = 6, width = 5, dpi = 500)
+print(lu_2034_plot)
 
 # Sediment Loading Plot
 lu_2034_sed <- ggplot(lu_area_2034_sum, aes(x = main_class, y = total_avg_sed, fill = main_class)) +
@@ -2159,7 +2127,7 @@ lu_2034_sed <- ggplot(lu_area_2034_sum, aes(x = main_class, y = total_avg_sed, f
   theme(axis.text.x = element_blank(),
         #axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "none",
-        )
+        axis.title.x = element_blank())
 
 print(lu_2034_sed)
 

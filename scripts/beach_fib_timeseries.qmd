@@ -31,6 +31,7 @@ library(janitor)
 **Loading Data + Clean Data For This Timeseries Analysis**
 
 ```{r}
+# Clean the beach data and log transform the data
 beach_clean <- read.csv(here("data", "clean_master_beach_data_2014_2024.csv")) |>
   mutate(log_result = log10(result), # log 10 transformed the result column
          sample_date = as.Date(sample_date), # make sampledate into a date from a chr
@@ -80,7 +81,7 @@ htb_colors <- c(
 
 -   E. Coli - 235 MPN/100 mL
 
-This code log10 transforms the exceedance threshold values for each FIB parameter, and then combines them into a data frame. This data frame will be used to create horizontal red lines in the following facet wrap graphs for each monitoring station and beach location.
+This code log10 transforms the exceedances threshold values for each FIB parameter, and then combines them into a data frame. This data frame will be used to create horizontal red lines in the following facet wrap graphs for each monitoring station and beach location.
 
 ```{r}
 # Calculate Log 10 total coliform threshold
@@ -139,17 +140,17 @@ walk(names(station_list), function(station) {
     labs(title = paste0("10-Year Time Series: ", station),
       x = "Year",
       y = expression(Log[10]*"(Concentration)")) +
-    theme_bw(base_size = 12) +
+    theme_bw(base_size = 14) +
     theme(
       plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
       axis.text.x = element_text(angle = 0, hjust = 0.5),
       legend.position = "none",
       panel.spacing = unit(1, "lines"))
   
-  # Save the PNG ----
+  # Save the PNG 
 #ggsave(filename = here("outputs", "beach_timeseries_all", #paste0(gsub("[^A-Za-z0-9]", "_", station), "_timeseries.png")),
 #                       plot = station_plot, width = 15, 
-#       height = 10,dpi = 400)
+#       height = 8,dpi = 400)
   
 print(station_plot)})
 
@@ -188,19 +189,75 @@ walk(names(beach_list), function(beach) {
     labs(title = paste0("10-Year Time Series: ", beach),
       x = "Year",
       y = expression(Log[10]*"(Concentration)")) +
-    theme_bw(base_size = 12) +
-    theme(
-      plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
-      axis.text.x = element_text(angle = 0, hjust = 0.5),
-      legend.position = "none",
-      panel.spacing = unit(1, "lines"))
+    theme_minimal(base_size = 12) +
+    theme(strip.text = element_text(face = "bold", 
+                                    size = 12),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.title.x = element_text(face = "bold", size = 12),
+    axis.title.y = element_text(face = "bold"),
+    legend.position = "none", 
+    panel.grid = element_blank())
   
   # Save the PNG 
-#ggsave(
-#  filename = here("outputs", "beach_timeseries_beachname", #paste0(gsub("[^A-Za-z0-9]", "_", beach), "_timeseries.png")),
-#  plot = beach_plot, width = 15, height = 10,dpi = 400)
+ggsave(
+  filename = here("outputs", "beach_timeseries_beachname", paste0(gsub("[^A-Za-z0-9]", "_", beach), 
+                                                     "_timeseries.png")),
+  plot = beach_plot, width = 12, height = 10,dpi = 400)
   
 print(beach_plot)})
+```
+
+## 10 Year Enterococcus Graphs Only
+
+This code was used to develop graphs for the final presentation that focuses only the 10-year timeseries of Enterococcus.
+
+```{r}
+# Filter the data to only enterococcus
+beach_entero_clean <- beach_clean |>
+  filter(parameter == "Enterococcus")
+
+# Split data by beach 
+beach_list_2 <- split(beach_entero_clean, beach_entero_clean$beach_name)
+
+# Loop through each beach 
+walk(names(beach_list_2), function(beach) {
+  
+  # Extract that station's data
+  beach_df_2 <- beach_list_2[[beach]] |>
+    arrange(sample_date) # Ensures that the sample_date column is in chronological order
+  
+  # Create the plot with enterococcus panels
+  beach_plot_2 <- ggplot(beach_df_2, aes(x = sample_date, y = log_result)) +
+geom_point(alpha = 0.6, size = 1.2, color = htb_colors["Enterococcus"])+
+#geom_hline(yintercept = log_entero,
+      #       inherit.aes = FALSE,
+      #      linetype = "dashed",
+      #      color = "red",
+      #       linewidth = 0.7) +
+    scale_x_date(breaks = seq(as.Date("2014-01-01"), 
+               as.Date("2024-01-01"), 
+               by = "1 year"),
+  date_labels = "%Y") + 
+    labs(title = paste0("10-Year Time Series: ", beach),
+      x = "Year",
+      y = expression(Log[10] * "(Concentration)")) +
+    theme_minimal(base_size = 14) +
+    theme(plot.title = element_text(face = "bold", 
+                                    hjust = 0.5),
+    axis.title.x = element_text(face = "bold", 
+                                size = 12),
+    axis.title.y = element_text(face = "bold",
+                                size = 12),
+    legend.position = "none", 
+    panel.grid = element_blank())
+  
+  # Save the PNG 
+ggsave(
+  filename = here("outputs", "beach_timeseries_entero_only", paste0(gsub("[^A-Za-z0-9]", "_", beach), 
+                                                     "_timeseries.png")),
+  plot = beach_plot_2, width = 14, height = 7,dpi = 400)
+  
+print(beach_plot_2)})
 ```
 
 # Exceedance Master Dataset
@@ -757,6 +814,19 @@ ggplot() +
 ```
 
 ### Top 10 Sites
+
+These top 10 sites were based on Lili's analysis for the top 10 sites with the highest amount of exceedances. The top 10 sites included the following monitorinig stations:
+
+1.   SMB-3-3
+2.  MDRH-3
+3.  MDRH-2
+4.  MDRH-1
+5.  CB-02
+6.  SMB-MC-2
+7.  SMB-3-4
+8.  SMB-1-18
+9.  SMB-2-7
+10. SMB-1-12
 
 ```{r}
 coef_df <- exceed_glm_coef_table |>

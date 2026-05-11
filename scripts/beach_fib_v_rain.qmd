@@ -527,7 +527,7 @@ print(dry_fib_fec_coli_plot)
 #ggsave(here("outputs", "dry_fib_fec_coli_plot.png"), width = 25, height = #15, dpi = 400)
 ```
 
-# Hydrographs 
+# Hydrographs
 
 [**Goal:**]{.underline} Create a hydrograph to understand changes in precipitation in relation to FIB concentrations throughout the 10 years (2014-2024) across 99 monitoring sites.
 
@@ -601,11 +601,6 @@ ecoli_hydrograph <- ggplot(station_df,
                            aes(x = sample_date)) +
 
   # E. coli concentrations
-  geom_line(aes(y = result_log),
-            color = "#40B4EB",
-            linewidth = 0.4,
-            alpha = 0.7) +
-
   geom_point(aes(y = result_log),
              color = "#40B4EB",
              size = 0.5,
@@ -659,8 +654,8 @@ print(ecoli_hydrograph)
 
 
 # Save the plots
-#ggsave(filename = here("outputs", "hydrographs", "ecoli", paste0(gsub("[^A-Za-z0-9]", "_", station), "_ecoli_hydrograph.png")),
-#  plot = ecoli_hydrograph, width = 15, height = 8, dpi = 300)
+ggsave(filename = here("outputs", "hydrographs", "ecoli", paste0(gsub("[^A-Za-z0-9]", "_", station), "_ecoli_hydrograph.png")),
+  plot = ecoli_hydrograph, width = 15, height = 8, dpi = 300)
 })
 ```
 
@@ -692,11 +687,6 @@ entero_hydrograph <- ggplot(station_df,
                            aes(x = sample_date)) +
 
   # E. coli concentrations
-  geom_line(aes(y = result_log),
-            color = "#2D94C8",
-            linewidth = 0.4,
-            alpha = 0.7) +
-
   geom_point(aes(y = result_log),
              color = "#2D94C8",
              size = 0.5,
@@ -783,11 +773,6 @@ total_hydrograph <- ggplot(station_df,
                            aes(x = sample_date)) +
 
   # Total Coliforms concentrations
-  geom_line(aes(y = result_log),
-            color = "#8FA9B9",
-            linewidth = 0.4,
-            alpha = 0.7) +
-
   geom_point(aes(y = result_log),
              color = "#8FA9B9",
              size = 0.5,
@@ -874,11 +859,6 @@ fecal_hydrograph <- ggplot(station_df,
                            aes(x = sample_date)) +
 
   # Fecal Coliforms concentrations
-  geom_line(aes(y = result_log),
-            color = "#1479A9",
-            linewidth = 0.4,
-            alpha = 0.7) +
-
   geom_point(aes(y = result_log),
              color = "#1479A9",
              size = 0.5,
