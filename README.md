@@ -56,7 +56,9 @@ school_rec
 
 ## Data Sources
 
-- 
+-Fecal Indicator Bacteria
+-Precipitation Data 
+-WMMS 2.0 Modeled Data
 
 ## Contact
 
