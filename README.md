@@ -3,7 +3,7 @@ Individual repository for the Water (e)Quality Bren School Master's Group Projec
 
 ## About This Repository
 
-This repository contains all materials for the -------------- analysis component of the Water (e)Quality project. 
+This repository contains all materials for the fecal indicator bacteria(FIB), precipitation, and WMMS 2.0 analysis components of the Water (e)Quality project. 
 
 ## Repository Structure
 
