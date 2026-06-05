@@ -10,8 +10,15 @@ This repository contains all materials for the fecal indicator bacteria(FIB), pr
 ```
 Tina Tran/
 ├── data/                                 # Data inputs FIB v precipitation analysis
+│   ├── beach_data_dry period.csv
+│   ├── beach _data_wet_period.csv
+│   ├── beach_site_summary_table.csv
+│   ├──clean_master_beach_data_2014_2024.csv
+│   ├── exceed_v_prcp_stat_coef.csv
+│   ├── precipitation_clean_2014_2024.csv
 │   ├── wmms
         ├── analysis
+
 park_rec
 school_rec
 │   ├── beach_data_dry_period.csv
@@ -41,10 +48,10 @@ school_rec
 │   ├─ hydrographs
 │   ├─ precip_only
 ├── scripts/                                    # Analysis scripts
-│   ├── beach_fib_average_annual.qmd
-│   ├── beach_fib_timeseries.qmd
-│   ├── beach_fib_v_rain.qmd
-│   ├── wmms_clean_data.qmd
+│   ├── beach_fib_average_annual.qmd # Exploratory analysis of overall annual FIB trends
+│   ├── beach_fib_timeseries.qmd # Timeseries analysis for FIB per monitoring station and per beach
+│   ├── beach_fib_v_rain.qmd # Wet v Dry FIB concentrations and Hydrographs 
+│   ├── wmms_clean_data.qmd # WMMMS 2.0 model output analysis for surface outflow volume, nitrogen loading, sediment loading
 ├── .gitignore
 ├── README.md
 └── Tina-Tran.Rproj                      # RStudio project file
