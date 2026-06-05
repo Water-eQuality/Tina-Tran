@@ -61,9 +61,9 @@ The WMMS 2.0 analysis address one main questions:
 
 ## Data Sources
 
--**Beach FIB Data**: California State Water Resources Control Board beach monitoring data
--**Precipitation Data**: Heal the Bay's internal copy 
--**WMMS 2.0 Modeled Data**: Watershed Modeling Management SYstem (WMMS) desktop model application outputs
+- **Beach FIB Data**: California State Water Resources Control Board beach monitoring data
+- **Precipitation Data**: Heal the Bay's internal copy 
+- **WMMS 2.0 Modeled Data**: Watershed Modeling Management SYstem (WMMS) desktop model application outputs
 
 ## Contact
 
