@@ -52,7 +52,7 @@ Tina Tran/
 
 ## Analysis Overview
 The FIB and precipitation analysis address two main questions:
-1. **Trends**: How does fecal indicator bacter (FIB) change over the past ten years?
+1. **Trends**: How does fecal indicator bacteria (FIB) change over the past ten years?
 2. **Impact of Precipitation**: How does precipitation influence the concentrations of FIB on the beach level?
 
 The WMMS 2.0 analysis address one main questions:
